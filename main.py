@@ -34,7 +34,10 @@ changed_classrooms = changed_classrooms.drop(columns=["Staff"])
 changed_classrooms = changed_classrooms[~changed_classrooms["Activity"].isin(["-"])]
 changed_classrooms = changed_classrooms[~changed_classrooms["Room"].str.contains("No Cover Required", na=False)]
 changed_classrooms = changed_classrooms[~changed_classrooms["Old Room"].str.contains(r"[A-Za-z]+, [A-Za-z]+", na=False)]
+# Replace empty strings and NaN in "New Staff" with values from "Old Staff"
+changed_classrooms["New Staff"] = changed_classrooms["New Staff"].replace("", pd.NA)
+changed_classrooms["New Staff"] = changed_classrooms["New Staff"].fillna(changed_classrooms["Old Staff"])
 changed_classrooms = changed_classrooms.dropna(how='all')
 changed_classrooms.reset_index(drop=True, inplace=True)
 
-print(changed_classrooms)
+print(changed_classrooms.tail(20))

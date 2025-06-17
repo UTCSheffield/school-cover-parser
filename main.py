@@ -22,6 +22,16 @@ for row in rows:
 
 # Define column headers manually based on original table
 columns = ["Period", "Staff or Room to replace", "Reason", "Activity", "Rooms", "Staff", "Assigned Staff or Room", "Times"]
+cover_sheet = pd.DataFrame(data, columns=columns)
+cover_sheet = cover_sheet.dropna(subset=["Staff or Room to replace", "Assigned Staff or Room"])
+cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"].str.contains("No Cover Required")]
+cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains(":Enr")]
+cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains("Mon:6")]
+cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains("Fri:6")]
+
+print(cover_sheet.tail(20))
+
+"""
 changed_classrooms = pd.DataFrame(data, columns=columns)
 
 changed_classrooms = changed_classrooms.drop(columns=["Reason","Times","Rooms"])
@@ -41,3 +51,4 @@ changed_classrooms = changed_classrooms.dropna(how='all')
 changed_classrooms.reset_index(drop=True, inplace=True)
 
 print(changed_classrooms.tail(20))
+"""

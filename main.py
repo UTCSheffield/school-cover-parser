@@ -24,10 +24,14 @@ for row in rows:
 columns = ["Period", "Staff or Room to replace", "Reason", "Activity", "Rooms", "Staff", "Assigned Staff or Room", "Times"]
 cover_sheet = pd.DataFrame(data, columns=columns)
 cover_sheet = cover_sheet.dropna(subset=["Staff or Room to replace", "Assigned Staff or Room"])
+cover_sheet.drop(columns=["Reason", "Times"], inplace=True)
 cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"].str.contains("No Cover Required")]
 cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains(":Enr")]
 cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains("Mon:6")]
 cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains("Fri:6")]
+cover_sheet = cover_sheet[~cover_sheet["Activity"].str.contains("-")]
+cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"].str.contains("No Cover Required", na=False)]
+cover_sheet = cover_sheet[cover_sheet["Staff or Room to replace"].str.match(r"([A-Za-z]{2}[1-9]{1,2})|(\([A-Za-z]+, [A-Za-z ]+\))", na=False)]
 
 print(cover_sheet.tail(20))
 

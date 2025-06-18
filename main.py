@@ -28,7 +28,7 @@ columns = [
 # Create DataFrame
 cover_sheet = pd.DataFrame(data, columns=columns)
 
-# Filter and clean data
+# Filter and clean blank and unimportant data
 cover_sheet = cover_sheet.dropna(subset=["Staff or Room to replace", "Assigned Staff or Room"])
 cover_sheet.drop(columns=["Reason", "Times"], inplace=True)
 cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"].str.contains("No Cover Required", na=False)]
@@ -38,6 +38,7 @@ cover_sheet = cover_sheet[~cover_sheet["Activity"].str.contains("-")]
 # Filter valid staff/room replacements
 pattern = r"([A-Za-z]{2}[1-9]{1,2})|(SOC)|(\([A-Za-z]+, [A-Za-z ]+\))"
 cover_sheet = cover_sheet[cover_sheet["Staff or Room to replace"].str.match(pattern, na=False)]
+cover_sheet["Staff or Room to replace"] = cover_sheet["Staff or Room to replace"].str.replace(r"[()]", "", regex=True)
 
 # Clean and split room and staff info
 cover_sheet["Rooms"] = cover_sheet["Rooms"].str.split("; ").str[-1].str.replace(r"[()]", "", regex=True)
@@ -72,6 +73,11 @@ cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(cover_sheet["
 simplified_sheet = cover_sheet
 simplified_sheet.drop(columns=["Staff", "Rooms", "Assigned Staff or Room"], inplace=True)
 
-html_table = simplified_sheet.to_html(index=False, escape=False)
-with open("simplified_sheet.html", "w", encoding="utf-8") as f:
-    f.write(html_table)
+simplified_sheet = simplified_sheet.sort_values(by=["Period", "Activity"], kind="stable")
+html_table = simplified_sheet.to_html(index=False, escape=False, classes="cover-table")
+
+with open("table_template.html", "r", encoding="utf-8") as template:
+    templateHtml = template.read()
+    html_output = templateHtml.replace("{html_table}", html_table)
+    with open("simplified_sheet.html", "w", encoding="utf-8") as f:
+        f.write(html_output)

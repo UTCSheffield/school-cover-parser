@@ -65,7 +65,7 @@ assigned_room = cover_sheet["Rooms"].str.split(">", expand=True)
 cover_sheet["Assigned Room"] = assigned_room[1].replace("", pd.NA)
 cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(assigned_room[0])
 cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].replace("", pd.NA)
-cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(cover_sheet["Assigned Staff or Room"].str.split(">", expand=True)[0])
+cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(cover_sheet["Assigned Staff or Room"].str.split(">", expand=True)[0].replace(r"[A-Za-z]+, [A-Za-z ]+", "", regex=True))
 
 # Display the last 20 rows
 #print(cover_sheet.tail(20))

@@ -31,7 +31,28 @@ cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains("Mon:6")]
 cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains("Fri:6")]
 cover_sheet = cover_sheet[~cover_sheet["Activity"].str.contains("-")]
 cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"].str.contains("No Cover Required", na=False)]
-cover_sheet = cover_sheet[cover_sheet["Staff or Room to replace"].str.match(r"([A-Za-z]{2}[1-9]{1,2})|(\([A-Za-z]+, [A-Za-z ]+\))", na=False)]
+cover_sheet = cover_sheet[cover_sheet["Staff or Room to replace"].str.match(r"([A-Za-z]{2}[1-9]{1,2})|(SOC)|(\([A-Za-z]+, [A-Za-z ]+\))", na=False)]
+cover_sheet["Rooms"] = cover_sheet["Rooms"].str.split("; ").str[-1]
+cover_sheet["Rooms"] = cover_sheet["Rooms"].str.replace(r"[()]", "", regex=True)
+cover_sheet["Staff"] = cover_sheet["Staff"].str.replace(r"[()]", "", regex=True)
+cover_sheet.insert(cover_sheet.columns.get_loc("Staff"), "Old Staff", cover_sheet["Staff"].str.split(">", expand=True)[0])
+cover_sheet.insert(cover_sheet.columns.get_loc("Staff"), "New Staff", cover_sheet["Staff"].str.split(">", expand=True)[1])
+cover_sheet["New Staff"] = cover_sheet["New Staff"].replace("", pd.NA)
+cover_sheet["New Staff"] = cover_sheet["New Staff"].fillna(cover_sheet["Old Staff"])
+cover_sheet = cover_sheet.drop(columns=["Staff"])
+cover_sheet.insert(
+    cover_sheet.columns.get_loc("Assigned Staff or Room"),
+    "Assigned Staff",
+    cover_sheet["Assigned Staff or Room"].str.extract(r"([A-Za-z]+, [A-Za-z ]+)")[0]
+)
+cover_sheet["Assigned Staff"].fillna("", inplace=True)
+cover_sheet.insert(
+    cover_sheet.columns.get_loc("Assigned Staff or Room"),
+    "Assigned Room",
+    cover_sheet["Rooms"].str.split(">", expand=True)[1]
+)
+cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].replace("", pd.NA)
+cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(cover_sheet["Rooms"].str.split(">", expand=True)[0])
 
 print(cover_sheet.tail(20))
 

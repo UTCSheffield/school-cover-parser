@@ -13,7 +13,7 @@ periods = {
     "2": "09:40-10:30",
     "Tut": "10:30-10:45",
     "Tut [1]": "10:45-11:00",
-    "Tut [2]": "11:00-11:15",
+    "Tut [1] [2]": "11:00-11:15",
     "3": "11:15-12:10",
     "4a": "12:10-12:40",
     "4": "12:40-13:10",
@@ -48,7 +48,6 @@ cover_sheet = pd.DataFrame(data, columns=columns)
 # Filter and clean blank and unimportant data
 cover_sheet = cover_sheet.dropna(subset=["Staff or Room to replace", "Assigned Staff or Room"])
 cover_sheet.drop(columns=["Reason"], inplace=True)
-cover_sheet.rename(columns={"Times": "Time"}, inplace=True)
 cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"].str.contains("No Cover Required", na=False)]
 cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains(":Enr|Mon:6|Fri:6")]
 cover_sheet = cover_sheet[~cover_sheet["Activity"].str.contains("-")]
@@ -118,6 +117,7 @@ room_df = cover_sheet[is_room].copy()
 room_df["Replaced Room"] = room_df["Staff or Room to replace"]
 room_df.drop(columns=["Staff or Room to replace"], inplace=True)
 
+
 # Merge on 'Activity' and 'Period' to keep context (more specific than just Activity)
 merged_df = pd.merge(
     staff_df,
@@ -128,15 +128,17 @@ merged_df = pd.merge(
 )
 
 # Combine fields that may be split across suffixes (since some rows are only in staff_df or room_df)
-for col in ["Assigned Staff", "Assigned Room"]:
+for col in ["Assigned Staff", "Assigned Room", "Times"]:
     merged_df[col] = merged_df[col + "_staff"].combine_first(merged_df[col + "_room"])
     merged_df.drop(columns=[col + "_staff", col + "_room"], inplace=True)
 
 # Reorder columns if needed
 merged_df = merged_df[[
     "Period", "Activity", "Replaced Staff", "Replaced Room",
-    "Assigned Staff", "Assigned Room"
+    "Assigned Staff", "Assigned Room", "Times"
 ]]
+
+merged_df.drop_duplicates(inplace=True)
 
 simplified_sheet = merged_df
 simplified_sheet = simplified_sheet.fillna("")
@@ -149,13 +151,26 @@ simplified_sheet.insert(
 simplified_sheet["Period"] = simplified_sheet["Period"].str.split(":", expand=True)[1]
 
 def get_time(row):
-    if len(str(row['Time'])) > 0:
-        return row['Time']
+    if row.get('Times') is not None and row['Times'] != "":
+        return row['Times']
     return periods.get(row['Period'])
 
 simplified_sheet['Time'] = simplified_sheet.apply(get_time, axis=1)
 
-simplified_sheet.sort_values(by="Time", inplace=True)
+# Extract year group for proper sorting (from Activity, assumed to be class names like '10A')
+def extract_year(group):
+    match = re.match(r"(\d+)", group)
+    return int(match.group(1)) if match else 0
+
+simplified_sheet["SortKey"] = simplified_sheet["Activity"].apply(extract_year)
+
+# Sort by Time (chronologically), then by Year group, then by Activity (e.g., A, B...)
+simplified_sheet.sort_values(by=["Time", "SortKey", "Activity"], inplace=True)
+
+# Drop the temporary column
+simplified_sheet.drop(columns=["SortKey"], inplace=True)
+
+simplified_sheet.drop(columns=["Times"], inplace=True)
 
 html_table = simplified_sheet.to_html(index=False, escape=False, classes="cover-table")
 

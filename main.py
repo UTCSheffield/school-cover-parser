@@ -5,6 +5,23 @@ import pandas as pd
 with open("Notice Board Summary.html", "r", encoding="utf-8") as file:
     soup = BeautifulSoup(file, "html.parser")
 
+classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HSLB"
+
+periods = {
+    "MM": "08:30-08:45",
+    "1": "08:45-09:40",
+    "2": "09:40-10:30",
+    "Tut": "10:30-10:45",
+    "Tut [1]": "10:45-11:00",
+    "Tut [2]": "11:00-11:15",
+    "3": "11:15-12:10",
+    "4a": "12:10-12:40",
+    "4": "12:40-13:10",
+    "4c": "13:10-13:40",
+    "5": "13:40-14:35",
+    "6": "14:35-15:30",
+}
+
 # Extract table rows
 rows = soup.find_all("tr")
 data = []
@@ -30,18 +47,36 @@ cover_sheet = pd.DataFrame(data, columns=columns)
 
 # Filter and clean blank and unimportant data
 cover_sheet = cover_sheet.dropna(subset=["Staff or Room to replace", "Assigned Staff or Room"])
-cover_sheet.drop(columns=["Reason", "Times"], inplace=True)
+cover_sheet.drop(columns=["Reason"], inplace=True)
+cover_sheet.rename(columns={"Times": "Time"}, inplace=True)
 cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"].str.contains("No Cover Required", na=False)]
 cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains(":Enr|Mon:6|Fri:6")]
 cover_sheet = cover_sheet[~cover_sheet["Activity"].str.contains("-")]
 
 # Filter valid staff/room replacements
-pattern = r"([A-Za-z]{2}[1-9]{1,2})|(SOC)|(\([A-Za-z]+, [A-Za-z ]+\))"
-cover_sheet = cover_sheet[cover_sheet["Staff or Room to replace"].str.match(pattern, na=False)]
+cover_sheet["Rooms"] = cover_sheet["Rooms"].str.replace(r"[()]", "", regex=True)
+#pattern = r"(\([A-Za-z]{2}[1-9]{1,2}\))|([A-Za-z]{2}[1-9]{1,2})|(SOC)|(HSLB)|(CQ)|(Supply \d+)|([A-Za-z]+, [A-Za-z ]+)"
+#cover_sheet = cover_sheet[cover_sheet["Staff or Room to replace"].str.match(pattern, na=False)]
 cover_sheet["Staff or Room to replace"] = cover_sheet["Staff or Room to replace"].str.replace(r"[()]", "", regex=True)
 
 # Clean and split room and staff info
-cover_sheet["Rooms"] = cover_sheet["Rooms"].str.split("; ").str[-1].str.replace(r"[()]", "", regex=True)
+import re
+
+def normalize_rooms(val):
+    if not isinstance(val, str) or val.strip() == "":
+        return ""
+
+    parts = val.split(";")
+    if len(parts) == 1:
+        return parts[0]  # just return the single remap or room
+
+    first = parts[0]  # CL4>LB14
+    # Extract all target rooms from remaps
+    targets = [re.search(r'>([A-Za-z]{2}[0-9]{1,2}|SOC|HSLB|HSDB|CQ|TLV)$', p) for p in parts[1:]]
+    targets = [m.group(1) for m in targets if m]
+    return f"{first}, {', '.join(targets)}" if targets else first
+
+cover_sheet["Rooms"] = cover_sheet["Rooms"].apply(normalize_rooms)
 
 # Extract assigned staff and room
 cover_sheet.insert(
@@ -70,10 +105,58 @@ cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(cover_sheet["
 # Display the last 20 rows
 #print(cover_sheet.tail(20))
 
-simplified_sheet = cover_sheet
-simplified_sheet.drop(columns=["Staff", "Rooms", "Assigned Staff or Room"], inplace=True)
+# Separate rows into staff and room based on pattern
+is_staff = cover_sheet["Staff or Room to replace"].str.contains(r"[A-Za-z]+, [A-Za-z ]+")
+is_room = cover_sheet["Staff or Room to replace"].str.match(classroom_pattern)
 
-simplified_sheet = simplified_sheet.sort_values(by=["Period", "Activity"], kind="stable")
+# Create separate DataFrames
+staff_df = cover_sheet[is_staff].copy()
+staff_df["Replaced Staff"] = staff_df["Staff or Room to replace"]
+staff_df.drop(columns=["Staff or Room to replace"], inplace=True)
+
+room_df = cover_sheet[is_room].copy()
+room_df["Replaced Room"] = room_df["Staff or Room to replace"]
+room_df.drop(columns=["Staff or Room to replace"], inplace=True)
+
+# Merge on 'Activity' and 'Period' to keep context (more specific than just Activity)
+merged_df = pd.merge(
+    staff_df,
+    room_df,
+    on=["Activity", "Period"],
+    how="outer",
+    suffixes=("_staff", "_room")
+)
+
+# Combine fields that may be split across suffixes (since some rows are only in staff_df or room_df)
+for col in ["Assigned Staff", "Assigned Room"]:
+    merged_df[col] = merged_df[col + "_staff"].combine_first(merged_df[col + "_room"])
+    merged_df.drop(columns=[col + "_staff", col + "_room"], inplace=True)
+
+# Reorder columns if needed
+merged_df = merged_df[[
+    "Period", "Activity", "Replaced Staff", "Replaced Room",
+    "Assigned Staff", "Assigned Room"
+]]
+
+simplified_sheet = merged_df
+simplified_sheet = simplified_sheet.fillna("")
+
+simplified_sheet.insert(
+    0,
+    "Day",
+    simplified_sheet["Period"].str.split(":", expand=True)[0]
+)
+simplified_sheet["Period"] = simplified_sheet["Period"].str.split(":", expand=True)[1]
+
+def get_time(row):
+    if len(str(row['Time'])) > 0:
+        return row['Time']
+    return periods.get(row['Period'])
+
+simplified_sheet['Time'] = simplified_sheet.apply(get_time, axis=1)
+
+simplified_sheet.sort_values(by="Time", inplace=True)
+
 html_table = simplified_sheet.to_html(index=False, escape=False, classes="cover-table")
 
 with open("table_template.html", "r", encoding="utf-8") as template:

@@ -238,6 +238,8 @@ supply_rows = simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Su
 unique_supply_staff = sorted(supply_rows["Assigned Staff"].unique())
 supply_tables = ""
 
+
+simplified_sheet.rename(columns={"Replaced Staff": "Teacher to Cover"}, inplace=True)
 for supply in unique_supply_staff:
     filtered = simplified_sheet[simplified_sheet["Assigned Staff"] == supply]
 
@@ -249,7 +251,7 @@ for supply in unique_supply_staff:
         index=False,
         escape=False,
         classes="cover-table",
-        columns=["Day", "Period", "Activity", "Replaced Staff", "Replaced Room", "Assigned Room", "Time"]
+        columns=["Day", "Period", "Activity", "Teacher to Cover", "Assigned Room", "Time"]
     )
 
     # Add section header + table

@@ -27,9 +27,9 @@ if date_text:
 classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HSLB"
 
 periods = {
-    "MM": { "time": "08:30-08:45" },
-    "1": { "time": "08:45-09:40" },
-    "2": { "time": "09:40-10:30" },
+    "MM": { "time": "08:30-08:45", "label": "MM" },
+    "1": { "time": "08:45-09:40", "label": "1" },
+    "2": { "time": "09:40-10:30", "label": "2" },
     "Tut": { "time": "10:30-10:45", "label": "Tutor A"},
     "Tut [1]": { "time": "10:45-11:00", "label": "Tutor B"},
     "Tut [1] [2]": { "time": "11:00-11:15", "label": "Tutor C"},
@@ -37,8 +37,8 @@ periods = {
     "4a": { "time": "12:10-12:40", "label": "4a"},
     "4":{ "time": "12:40-13:10", "label": "4b"},
     "4c": { "time": "13:10-13:40", "label": "4c"},
-    "5": { "time": "13:40-14:35" },
-    "6": { "time": "14:35-15:30" },
+    "5": { "time": "13:40-14:35", "label": "5" },
+    "6": { "time": "14:35-15:30", "label": "6" },
 }
 
 # Extract table rows
@@ -238,25 +238,71 @@ supply_rows = simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Su
 unique_supply_staff = sorted(supply_rows["Assigned Staff"].unique())
 supply_tables = ""
 
-
 simplified_sheet.rename(columns={"Replaced Staff": "Teacher to Cover"}, inplace=True)
 for supply in unique_supply_staff:
-    filtered = simplified_sheet[simplified_sheet["Assigned Staff"] == supply]
+    filtered = simplified_sheet[simplified_sheet["Assigned Staff"] == supply].copy()
+
+    # Get periods that are already assigned for this supply
+    assigned_periods = set(filtered["Period"])
+
+    # Fill in missing periods
+    missing = [p for p in periods.values() if p['label'] not in assigned_periods]
+
+    for p in missing:
+        time = p["time"]
+        label = p["label"]
+        filtered = pd.concat([
+            filtered,
+            pd.DataFrame([{
+                "Day": "",
+                "Period": label,
+                "Activity": "",
+                "Teacher to Cover": "",
+                "Assigned Room": "",
+                "Time": time
+            }])
+        ], ignore_index=True)
+
+    filtered["IsFree"] = filtered.get("IsFree", False)
+
+
+    # Sort to keep order
+    filtered["SortKey"] = filtered["Time"]
+    filtered.sort_values(by="SortKey", inplace=True)
+    filtered.drop(columns=["SortKey"], inplace=True)
+
 
     if filtered.empty:
         continue
 
-    # Optional: Customize columns shown
     table_html = filtered.to_html(
         index=False,
         escape=False,
         classes="cover-table",
-        columns=["Day", "Period", "Activity", "Teacher to Cover", "Assigned Room", "Time"]
+        columns=["Period", "Activity", "Teacher to Cover", "Assigned Room", "Time"],
+    )
+
+    num_cols = len(filtered.columns)
+
+    # Create the header row
+    big_header = f"""
+    <thead>
+        <tr>
+            <th colspan="{num_cols}" style="text-align:center; font-size:24px; padding:10px; background-color:#f0f0f0;">
+                {supply} Cover Assignments – {formatted_date}
+            </th>
+        </tr>
+    </thead>
+    """
+
+    # Replace <thead> in the original table with our big header + the original header
+    table_html = table_html.replace(
+        "<thead>",
+        big_header + "<thead>"
     )
 
     # Add section header + table
     supply_tables += f"""
-    <h2 style="font-family:sans-serif; color:#333;">{supply} Cover Assignments</h2>
     {table_html}
     <br><br>
     """

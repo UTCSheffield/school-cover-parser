@@ -10,7 +10,7 @@ with open("Notice Board Summary.html", "r", encoding="utf-8") as file:
 date_text = ""
 for string in soup.stripped_strings:
     if "Full List of Staff and Room Details:" in string:
-        match = re.search(r"Full List of Staff and Room Details:\s*(\d{1,2}-[A-Za-z]{3}-\d{4})", string)
+        match = re.search(r"Full List of Staff and Room Details:\s*(\d{1,2}-[A-Za-z]{3,}-\d{4})", string)
         if match:
             date_text = match.group(1)
             break

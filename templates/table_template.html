@@ -3,6 +3,10 @@
 <head>
     <meta charset="utf-8">
     <style>
+        @page {
+            size: A4;
+            margin: 20mm;
+        }
         body {
             margin: 0;
             padding: 1rem;
@@ -11,6 +15,7 @@
         table.cover-table {
             width: 100%;
             border-collapse: collapse;
+            break-after: page;
         }
         table.cover-table th, table.cover-table td {
             border: 1px solid #ccc;
@@ -21,7 +26,7 @@
             background-color: #f2f2f2;
         }
         td:empty {
-            background-color: #737373;
+            background-color: #979797;
         }
     </style>
 </head>

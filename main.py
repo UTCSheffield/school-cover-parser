@@ -2,9 +2,20 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import re
 from datetime import datetime
+from pathlib import Path
+import webbrowser
+
+data_filename = "Notice Board Summary.html"
+outputs_folder = "outputs"
+templates_folder = "templates"
+
+data_file_path = Path.joinpath(Path.home(), "Downloads", data_filename)
+
+if not Path(data_file_path).is_file():
+    data_file_path = Path.joinpath(Path.cwd(), "test_data", data_filename)
 
 # Load the HTML content
-with open("Notice Board Summary.html", "r", encoding="utf-8") as file:
+with open(data_file_path, "r", encoding="utf-8") as file:
     soup = BeautifulSoup(file, "html.parser")
 
 date_text = ""
@@ -225,11 +236,15 @@ html_table = html_table.replace(
     big_header + "<thead>"
 )
 
-with open("table_template.html", "r", encoding="utf-8") as template:
+with open(Path.joinpath(Path.cwd(),templates_folder, "table_template.html"), "r", encoding="utf-8") as template:
     templateHtml = template.read()
     html_output = templateHtml.replace("{html_table}", html_table)
-    with open("simplified_sheet.html", "w", encoding="utf-8") as f:
+
+    cover_output_path = Path.joinpath(Path.cwd(), outputs_folder, "simplified_sheet.html")
+    with open(cover_output_path, "w", encoding="utf-8") as f:
         f.write(html_output)
+    
+    webbrowser.open(cover_output_path)
 
 # Only keep rows where Assigned Staff is like "Supply 1", "Supply 2", etc.
 supply_rows = simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Supply \d+", na=False)]
@@ -308,10 +323,13 @@ for supply in unique_supply_staff:
     """
 
 # For example, inject into a placeholder in template
-with open("table_template.html", "r", encoding="utf-8") as template:
+with open( Path.joinpath(Path.cwd(),templates_folder, "table_template.html"), "r", encoding="utf-8") as template:
     template_html = template.read()
 
 output_html = template_html.replace("{html_table}", supply_tables)
 
-with open("supply_tables.html", "w", encoding="utf-8") as f:
+supply_output_path = Path.joinpath(Path.cwd(), outputs_folder, "supply_tables.html")
+with open(supply_output_path, "w", encoding="utf-8") as f:
     f.write(output_html)
+
+webbrowser.open(supply_output_path)

@@ -35,7 +35,7 @@ if date_text:
     except ValueError:
         formatted_date = date_text  # fallback if format is weird
 
-classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HSLB"
+classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
 
 periods = {
     "MM": { "time": "08:30-08:45", "label": "MM" },
@@ -84,8 +84,6 @@ cover_sheet = cover_sheet[~cover_sheet["Activity"].str.contains("-")]
 
 # Filter valid staff/room replacements
 cover_sheet["Rooms"] = cover_sheet["Rooms"].str.replace(r"[()]", "", regex=True)
-#pattern = r"(\([A-Za-z]{2}[1-9]{1,2}\))|([A-Za-z]{2}[1-9]{1,2})|(SOC)|(HSLB)|(CQ)|(Supply \d+)|([A-Za-z]+, [A-Za-z ]+)"
-#cover_sheet = cover_sheet[cover_sheet["Staff or Room to replace"].str.match(pattern, na=False)]
 cover_sheet["Staff or Room to replace"] = cover_sheet["Staff or Room to replace"].str.replace(r"[()]", "", regex=True)
 
 def normalize_rooms(val):
@@ -98,7 +96,7 @@ def normalize_rooms(val):
 
     first = parts[0]  # CL4>LB14
     # Extract all target rooms from remaps
-    targets = [re.search(r'>([A-Za-z]{2}[0-9]{1,2}|SOC|HSLB|HSDB|CQ|TLV)$', p) for p in parts[1:]]
+    targets = [re.search(classroom_pattern, p) for p in parts[1:]]
     targets = [m.group(1) for m in targets if m]
     return f"{first}, {', '.join(targets)}" if targets else first
 
@@ -293,7 +291,7 @@ for supply in unique_supply_staff:
     table_html = filtered.to_html(
         index=False,
         escape=False,
-        classes="cover-table",
+        classes=["cover-table", "supply-table"],
         columns=["Period", "Activity", "Teacher to Cover", "Assigned Room", "Time"],
     )
 

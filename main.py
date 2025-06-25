@@ -35,7 +35,7 @@ if date_text:
     except ValueError:
         formatted_date = date_text  # fallback if format is weird
 
-classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HSLB"
+classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
 
 periods = {
     "MM": { "time": "08:30-08:45", "label": "MM" },
@@ -84,8 +84,6 @@ cover_sheet = cover_sheet[~cover_sheet["Activity"].str.contains("-")]
 
 # Filter valid staff/room replacements
 cover_sheet["Rooms"] = cover_sheet["Rooms"].str.replace(r"[()]", "", regex=True)
-#pattern = r"(\([A-Za-z]{2}[1-9]{1,2}\))|([A-Za-z]{2}[1-9]{1,2})|(SOC)|(HSLB)|(CQ)|(Supply \d+)|([A-Za-z]+, [A-Za-z ]+)"
-#cover_sheet = cover_sheet[cover_sheet["Staff or Room to replace"].str.match(pattern, na=False)]
 cover_sheet["Staff or Room to replace"] = cover_sheet["Staff or Room to replace"].str.replace(r"[()]", "", regex=True)
 
 def normalize_rooms(val):
@@ -98,7 +96,7 @@ def normalize_rooms(val):
 
     first = parts[0]  # CL4>LB14
     # Extract all target rooms from remaps
-    targets = [re.search(r'>([A-Za-z]{2}[0-9]{1,2}|SOC|HSLB|HSDB|CQ|TLV)$', p) for p in parts[1:]]
+    targets = [re.search(classroom_pattern, p) for p in parts[1:]]
     targets = [m.group(1) for m in targets if m]
     return f"{first}, {', '.join(targets)}" if targets else first
 
@@ -248,10 +246,12 @@ with open(Path.joinpath(Path.cwd(),templates_folder, "table_template.html"), "r"
 
 # Only keep rows where Assigned Staff is like "Supply 1", "Supply 2", etc.
 supply_rows = simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Supply \d+", na=False)]
+room_rows = simplified_sheet[simplified_sheet["Replaced Room"].str.match(classroom_pattern, na=False)]
 
 # Get unique supply teachers, e.g. ["Supply 1", "Supply 2"]
 unique_supply_staff = sorted(supply_rows["Assigned Staff"].unique())
-supply_tables = ""
+unique_room_changes = sorted(room_rows["Replaced Room"].unique())
+supply_room_tables = []
 
 simplified_sheet.rename(columns={"Replaced Staff": "Teacher to Cover"}, inplace=True)
 for supply in unique_supply_staff:
@@ -293,7 +293,7 @@ for supply in unique_supply_staff:
     table_html = filtered.to_html(
         index=False,
         escape=False,
-        classes="cover-table",
+        classes=["cover-table", "supply-table"],
         columns=["Period", "Activity", "Teacher to Cover", "Assigned Room", "Time"],
     )
 
@@ -303,7 +303,7 @@ for supply in unique_supply_staff:
     big_header = f"""
     <thead>
         <tr>
-            <th colspan="{num_cols}" style="text-align:center; font-size:24px; padding:10px; background-color:#f0f0f0;">
+            <th colspan="{num_cols}" style="text-align:center; font-size:24px; padding:10px;">
                 {supply} Cover Assignments – {formatted_date}
             </th>
         </tr>
@@ -317,16 +317,77 @@ for supply in unique_supply_staff:
     )
 
     # Add section header + table
-    supply_tables += f"""
-    {table_html}
-    <br><br>
+    supply_room_tables.append(table_html)
+    
+for room in unique_room_changes:
+    filtered = simplified_sheet[simplified_sheet["Replaced Room"] == room].copy()
+
+    # Get periods that are already assigned for this supply
+    assigned_periods = set(filtered["Period"])
+
+    # Fill in missing periods
+    missing = [p for p in periods.values() if p['label'] not in assigned_periods]
+
+    for p in missing:
+        time = p["time"]
+        label = p["label"]
+        filtered = pd.concat([
+            filtered,
+            pd.DataFrame([{
+                "Day": "",
+                "Period": label,
+                "Activity": "",
+                "Replaced Room": "",
+                "Assigned Room": "",
+                "Time": time
+            }])
+        ], ignore_index=True)
+
+    # Sort to keep order
+    filtered["SortKey"] = filtered["Time"]
+    filtered.sort_values(by="SortKey", inplace=True)
+    filtered.drop(columns=["SortKey"], inplace=True)
+
+
+    if filtered.empty:
+        continue
+
+    table_html = filtered.to_html(
+        index=False,
+        escape=False,
+        classes=["cover-table", "supply-table"],
+        columns=["Period", "Activity", "Assigned Room", "Time"],
+    )
+
+    num_cols = len(filtered.columns)
+
+    # Create the header row
+    big_header = f"""
+    <thead>
+        <tr>
+            <th colspan="{num_cols}" style="text-align:center; font-size:24px; padding:10px;">
+                Room Changes for {room} – {formatted_date}
+            </th>
+        </tr>
+    </thead>
     """
+
+    # Replace <thead> in the original table with our big header + the original header
+    table_html = table_html.replace(
+        "<thead>",
+        big_header + "<thead>"
+    )
+
+    # Add section header + table
+    supply_room_tables.append(table_html)
+
+supply_html = "<br><br>".join(supply_room_tables)
 
 # For example, inject into a placeholder in template
 with open( Path.joinpath(Path.cwd(),templates_folder, "table_template.html"), "r", encoding="utf-8") as template:
     template_html = template.read()
 
-output_html = template_html.replace("{html_table}", supply_tables)
+output_html = template_html.replace("{html_table}", supply_html)
 
 supply_output_path = Path.joinpath(Path.cwd(), outputs_folder, "supply_tables.html")
 with open(supply_output_path, "w", encoding="utf-8") as f:

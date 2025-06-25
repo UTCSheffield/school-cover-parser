@@ -17,16 +17,22 @@
             border-collapse: collapse;
             break-after: page;
         }
+        table.cover-table:last-of-type {
+            break-after: avoid;
+        }
         table.cover-table th, table.cover-table td {
-            border: 1px solid #ccc;
+            border: 1px solid #000000;
             padding: 8px;
             text-align: left;
         }
-        table.cover-table th {
-            background-color: #f2f2f2;
+        tr {
+            background-color: #ffffff;
+        }
+        thead tr {
+            background-color: rgb(199, 199, 199);
         }
         table.supply-table td:empty {
-            background-color: lightgray;
+            background-color: rgb(199, 199, 199);
         }
     </style>
 </head>

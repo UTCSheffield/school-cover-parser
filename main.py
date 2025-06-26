@@ -221,7 +221,7 @@ num_cols = len(simplified_sheet.columns)
 big_header = f"""
 <thead>
     <tr>
-        <th colspan="{num_cols}" style="text-align:center; font-size:24px; padding:10px; background-color:#f0f0f0;">
+        <th colspan="{num_cols}" style="text-align:center; font-size:24px; padding:10px;">
             Cover &amp; Room Change Summary <br /> {formatted_date}
         </th>
     </tr>

@@ -253,7 +253,7 @@ unique_supply_staff = sorted(supply_rows["Assigned Staff"].unique())
 unique_room_changes = sorted(room_rows["Replaced Room"].unique())
 supply_room_tables = []
 
-simplified_sheet.rename(columns={"Replaced Staff": "Teacher to Cover"}, inplace=True)
+simplified_sheet.rename(columns={"Replaced Staff": "Teacher to Cover", "Assigned Room": "Room"}, inplace=True)
 for supply in unique_supply_staff:
     filtered = simplified_sheet[simplified_sheet["Assigned Staff"] == supply].copy()
 

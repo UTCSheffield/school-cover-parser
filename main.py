@@ -4,10 +4,13 @@ import re
 from datetime import datetime
 from pathlib import Path
 import webbrowser
+import win32com.client as client
+
 
 data_filename = "Notice Board Summary.html"
 outputs_folder = "outputs"
 templates_folder = "templates"
+do_email = True
 
 data_file_path = Path.joinpath(Path.home(), "Downloads", data_filename)
 
@@ -242,7 +245,16 @@ with open(Path.joinpath(Path.cwd(),templates_folder, "table_template.html"), "r"
     with open(cover_output_path, "w", encoding="utf-8") as f:
         f.write(html_output)
     
-    webbrowser.open(cover_output_path)
+    if do_email:
+        outlook = client.Dispatch('Outlook.Application')
+        message = outlook.CreateItem(0)
+        message.Subject = 'Cover & Room Change Summary - '+ formatted_date
+        message.To = "allutcolpstaff@utcsheffield.org.uk"
+        message.HTMLBody = html_output
+        
+        message.Display()
+    else : 
+        webbrowser.open(cover_output_path)
 
 # Only keep rows where Assigned Staff is like "Supply 1", "Supply 2", etc.
 supply_rows = simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Supply \d+", na=False)]
@@ -394,3 +406,5 @@ with open(supply_output_path, "w", encoding="utf-8") as f:
     f.write(output_html)
 
 webbrowser.open(supply_output_path)
+
+

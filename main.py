@@ -273,7 +273,7 @@ for supply in unique_supply_staff:
                 "Period": label,
                 "Activity": "",
                 "Teacher to Cover": "",
-                "Assigned Room": "",
+                "Room": "",
                 "Time": time
             }])
         ], ignore_index=True)
@@ -294,7 +294,7 @@ for supply in unique_supply_staff:
         index=False,
         escape=False,
         classes=["cover-table", "supply-table"],
-        columns=["Period", "Activity", "Teacher to Cover", "Assigned Room", "Time"],
+        columns=["Period", "Activity", "Teacher to Cover", "Room", "Time"],
     )
 
     num_cols = len(filtered.columns)

@@ -5,22 +5,63 @@ from datetime import datetime
 from pathlib import Path
 import webbrowser
 import win32com.client as client
+import os
 
+# PARAMETERS
+do_email = False
+# PARAMETERS END
 
+# CONSTANTS
 data_filename = "Notice Board Summary.html"
 outputs_folder = "outputs"
 templates_folder = "templates"
-do_email = True
+periods = {
+    "MM": { "time": "08:30-08:45", "label": "MM" },
+    "1": { "time": "08:45-09:40", "label": "1" },
+    "2": { "time": "09:40-10:30", "label": "2" },
+    "Tut": { "time": "10:30-10:45", "label": "Tutor A"},
+    "Tut [1]": { "time": "10:45-11:00", "label": "Tutor B"},
+    "Tut [1] [2]": { "time": "11:00-11:15", "label": "Tutor C"},
+    "3": { "time": "11:15-12:10", "label": "3"},
+    "4a": { "time": "12:10-12:40", "label": "4a"},
+    "4":{ "time": "12:40-13:10", "label": "4b"},
+    "4c": { "time": "13:10-13:40", "label": "4c"},
+    "5": { "time": "13:40-14:35", "label": "5" },
+    "6": { "time": "14:35-15:30", "label": "6" },
+}
+classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
+columns = [
+    "Period", "Staff or Room to replace", "Reason", "Activity",
+    "Rooms", "Staff", "Assigned Staff or Room", "Times"
+]
+# CONSTANTS END
 
+# LOAD DATA
 data_file_path = Path.joinpath(Path.home(), "Downloads", data_filename)
+if Path(data_file_path).is_file():
+    os.remove(data_file_path)
 
 if not Path(data_file_path).is_file():
     data_file_path = Path.joinpath(Path.cwd(), "test_data", data_filename)
+    if not Path(data_file_path).is_file():
+        raise ValueError("Data file not found. Please ensure the HTML file is in the Downloads folder or in test_data folder.")
 
-# Load the HTML content
 with open(data_file_path, "r", encoding="utf-8") as file:
     soup = BeautifulSoup(file, "html.parser")
 
+rows = soup.find_all("tr")
+data = []
+for row in rows:
+    cols = row.find_all("td")
+    if not cols:
+        continue
+    values = [col.get_text(strip=True) for col in cols]
+    if all(val == '' for val in values):
+        continue
+    data.append(values)
+# LOAD DATA END
+
+# DATE EXTRACTION
 date_text = ""
 for string in soup.stripped_strings:
     if "Full List of Staff and Room Details:" in string:
@@ -36,44 +77,8 @@ if date_text:
         date_obj = datetime.strptime(date_text, "%d-%b-%Y")
         formatted_date = date_obj.strftime("%A %d %B %Y")
     except ValueError:
-        formatted_date = date_text  # fallback if format is weird
-
-classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
-
-periods = {
-    "MM": { "time": "08:30-08:45", "label": "MM" },
-    "1": { "time": "08:45-09:40", "label": "1" },
-    "2": { "time": "09:40-10:30", "label": "2" },
-    "Tut": { "time": "10:30-10:45", "label": "Tutor A"},
-    "Tut [1]": { "time": "10:45-11:00", "label": "Tutor B"},
-    "Tut [1] [2]": { "time": "11:00-11:15", "label": "Tutor C"},
-    "3": { "time": "11:15-12:10", "label": "3"},
-    "4a": { "time": "12:10-12:40", "label": "4a"},
-    "4":{ "time": "12:40-13:10", "label": "4b"},
-    "4c": { "time": "13:10-13:40", "label": "4c"},
-    "5": { "time": "13:40-14:35", "label": "5" },
-    "6": { "time": "14:35-15:30", "label": "6" },
-}
-
-# Extract table rows
-rows = soup.find_all("tr")
-data = []
-
-# Extract and clean table data
-for row in rows:
-    cols = row.find_all("td")
-    if not cols:
-        continue
-    values = [col.get_text(strip=True) for col in cols]
-    if all(val == '' for val in values):
-        continue
-    data.append(values)
-
-# Define column headers manually
-columns = [
-    "Period", "Staff or Room to replace", "Reason", "Activity",
-    "Rooms", "Staff", "Assigned Staff or Room", "Times"
-]
+        formatted_date = date_text
+# DATE EXTRACTION END
 
 # Create DataFrame
 cover_sheet = pd.DataFrame(data, columns=columns)

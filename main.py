@@ -30,6 +30,7 @@ periods = {
     "6": { "time": "14:35-15:30", "label": "6" },
 }
 classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
+staff_pattern = r"[A-Za-z]+, [A-Za-z ]+"
 columns = [
     "Period", "Staff or Room to replace", "Reason", "Activity",
     "Rooms", "Staff", "Assigned Staff or Room", "Times"
@@ -80,19 +81,32 @@ if date_text:
         formatted_date = date_text
 # DATE EXTRACTION END
 
-# Create DataFrame
+# DATAFRAME + CLEANUP
 cover_sheet = pd.DataFrame(data, columns=columns)
 
-# Filter and clean blank and unimportant data
 cover_sheet = cover_sheet.dropna(subset=["Staff or Room to replace", "Assigned Staff or Room"])
 cover_sheet.drop(columns=["Reason"], inplace=True)
 cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"].str.contains("No Cover Required", na=False)]
 cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains(":Enr|Mon:6|Fri:6")]
 cover_sheet = cover_sheet[~cover_sheet["Activity"].str.contains("-")]
 
-# Filter valid staff/room replacements
 cover_sheet["Rooms"] = cover_sheet["Rooms"].str.replace(r"[()]", "", regex=True)
 cover_sheet["Staff or Room to replace"] = cover_sheet["Staff or Room to replace"].str.replace(r"[()]", "", regex=True)
+# DATAFRAME + CLEANUP END
+
+
+def get_time(row):
+    return periods.get(row['Period'])['time']
+
+def label_period(row):
+    return periods[row['Period']]['label']# if 'label' in periods[row['Period']] else row['Period']
+
+
+# Extract year group for proper sorting (from Activity, assumed to be class names like '10A')
+def extract_year(group):
+    match = re.match(r"(\d+)", group)
+    return int(match.group(1)) if match else 0
+
 
 def normalize_rooms(val):
     if not isinstance(val, str) or val.strip() == "":
@@ -132,13 +146,10 @@ assigned_room = cover_sheet["Rooms"].str.split(">", expand=True)
 cover_sheet["Assigned Room"] = assigned_room[1].replace("", pd.NA)
 cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(assigned_room[0])
 cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].replace("", pd.NA)
-cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(cover_sheet["Assigned Staff or Room"].str.split(">", expand=True)[0].replace(r"[A-Za-z]+, [A-Za-z ]+", "", regex=True))
-
-# Display the last 20 rows
-#print(cover_sheet.tail(20))
+cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(cover_sheet["Assigned Staff or Room"].str.replace(staff_pattern, "", regex=True))
 
 # Separate rows into staff and room based on pattern
-is_staff = cover_sheet["Staff or Room to replace"].str.contains(r"[A-Za-z]+, [A-Za-z ]+")
+is_staff = cover_sheet["Staff or Room to replace"].str.contains(staff_pattern)
 is_room = cover_sheet["Staff or Room to replace"].str.match(classroom_pattern)
 
 # Create separate DataFrames
@@ -150,8 +161,6 @@ room_df = cover_sheet[is_room].copy()
 room_df["Replaced Room"] = room_df["Staff or Room to replace"]
 room_df.drop(columns=["Staff or Room to replace"], inplace=True)
 
-
-# Merge on 'Activity' and 'Period' to keep context (more specific than just Activity)
 merged_df = pd.merge(
     staff_df,
     room_df,
@@ -160,18 +169,18 @@ merged_df = pd.merge(
     suffixes=("_staff", "_room")
 )
 
-# Combine fields that may be split across suffixes (since some rows are only in staff_df or room_df)
 for col in ["Assigned Staff", "Assigned Room", "Times"]:
     merged_df[col] = merged_df[col + "_staff"].combine_first(merged_df[col + "_room"])
     merged_df.drop(columns=[col + "_staff", col + "_room"], inplace=True)
 
-# Reorder columns if needed
 merged_df = merged_df[[
     "Period", "Activity", "Replaced Staff", "Replaced Room",
     "Assigned Staff", "Assigned Room", "Times"
 ]]
 
 merged_df.drop_duplicates(inplace=True)
+
+#Simplified DataFrame start
 
 simplified_sheet = merged_df
 simplified_sheet = simplified_sheet.fillna("")
@@ -182,29 +191,14 @@ simplified_sheet.insert(
     simplified_sheet["Period"].str.split(":", expand=True)[0]
 )
 simplified_sheet["Period"] = simplified_sheet["Period"].str.split(":", expand=True)[1]
-
-def get_time(row):
-    return periods.get(row['Period'])['time']
-
 simplified_sheet['Time'] = simplified_sheet.apply(get_time, axis=1)
-
-def label_period(row):
-    return periods[row['Period']]['label'] if 'label' in periods[row['Period']] else row['Period']
-    
 simplified_sheet['Period'] = simplified_sheet.apply(label_period, axis=1)
-
-# Extract year group for proper sorting (from Activity, assumed to be class names like '10A')
-def extract_year(group):
-    match = re.match(r"(\d+)", group)
-    return int(match.group(1)) if match else 0
-
 simplified_sheet["SortKey"] = simplified_sheet["Activity"].apply(extract_year)
-
-# Sort by Time (chronologically), then by Year group, then by Activity (e.g., A, B...)
 simplified_sheet.sort_values(by=["Time", "SortKey", "Activity"], inplace=True)
-
-# Drop the temporary column
 simplified_sheet.drop(columns=["SortKey"], inplace=True)
+
+
+
 
 if simplified_sheet['Times'].dropna().eq("").all():
     # All empty or blank
@@ -222,19 +216,6 @@ else:
         columns=["Period", "Activity", "Replaced Staff", "Replaced Room", "Assigned Staff", "Assigned Room", "Times"]
     )
 
-# Count number of columns in the table
-num_cols = len(simplified_sheet.columns)
-
-# Create the header row
-big_header = f"""
-<thead>
-    <tr>
-        <th colspan="{num_cols}" style="text-align:center; font-size:24px; padding:10px;">
-            Cover &amp; Room Change Summary <br /> {formatted_date}
-        </th>
-    </tr>
-</thead>
-"""
 
 # Replace <thead> in the original table with our big header + the original header
 html_table = html_table.replace(

@@ -222,7 +222,7 @@ big_header = f"""
 <thead>
     <tr>
         <th colspan="{num_cols}" style="text-align:center; font-size:24px; padding:10px; background-color:#f0f0f0;">
-            Cover Summary – {formatted_date}
+            Cover &amp; Room Change Summary <br /> {formatted_date}
         </th>
     </tr>
 </thead>

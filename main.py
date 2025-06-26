@@ -245,17 +245,15 @@ with open(Path.joinpath(Path.cwd(),templates_folder, "table_template.html"), "r"
     webbrowser.open(cover_output_path)
 
 # Only keep rows where Assigned Staff is like "Supply 1", "Supply 2", etc.
-supply_rows = simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Supply \d+", na=False)]
+supply_rows = simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Supply \d+", na=False)].rename(columns={"Replaced Staff": "Teacher to Cover", "Assigned Room": "Room"}, inplace=False)
 room_rows = simplified_sheet[simplified_sheet["Replaced Room"].str.match(classroom_pattern, na=False)]
 
 # Get unique supply teachers, e.g. ["Supply 1", "Supply 2"]
 unique_supply_staff = sorted(supply_rows["Assigned Staff"].unique())
 unique_room_changes = sorted(room_rows["Replaced Room"].unique())
 supply_room_tables = []
-
-simplified_sheet.rename(columns={"Replaced Staff": "Teacher to Cover", "Assigned Room": "Room"}, inplace=True)
 for supply in unique_supply_staff:
-    filtered = simplified_sheet[simplified_sheet["Assigned Staff"] == supply].copy()
+    filtered = supply_rows[supply_rows["Assigned Staff"] == supply].copy()
 
     # Get periods that are already assigned for this supply
     assigned_periods = set(filtered["Period"])

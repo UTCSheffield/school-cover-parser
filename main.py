@@ -355,8 +355,8 @@ for room in unique_room_changes:
     table_html = filtered.to_html(
         index=False,
         escape=False,
-        classes=["cover-table", "supply-table"],
-        columns=["Period", "Activity", "Assigned Room", "Time"],
+        classes=["cover-table", "room-table"],
+        columns=["Period", "Activity", "Assigned Room"],
     )
 
     num_cols = len(filtered.columns)

@@ -39,8 +39,6 @@ columns = [
 
 # LOAD DATA
 data_file_path = Path.joinpath(Path.home(), "Downloads", data_filename)
-if Path(data_file_path).is_file():
-    os.remove(data_file_path)
 
 if not Path(data_file_path).is_file():
     data_file_path = Path.joinpath(Path.cwd(), "test_data", data_filename)
@@ -325,3 +323,5 @@ output_html = get_template().replace("{table}", supply_room_html)
 supply_output_path = save_output(output_html, "supply_sheet.html")
 
 webbrowser.open(supply_output_path)
+
+os.remove(data_file_path)

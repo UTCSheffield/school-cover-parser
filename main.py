@@ -100,7 +100,7 @@ def header(text, colspan):
     return f"""
     <thead>
         <tr>
-            <th colspan="{colspan}">
+            <th colspan="{colspan}" style="font-size: 24px; padding: 10px;">
                 {text}
             </th>
         </tr>
@@ -117,10 +117,10 @@ def save_output(html_output, filename):
     return output_path
 
 def room_or_supply(data: pd.DataFrame, supply=False):
-    uniques = sorted(data["Teacher to Cover"].unique()) if supply else sorted(data["Replaced Room"].unique())
+    uniques = sorted(data["Assigned Staff"].unique()) if supply else sorted(data["Replaced Room"].unique())
     tables = []
     for unique in uniques:
-        filtered = data[data["Assigned Staff" if supply == True else "Assigned Room"] == unique].copy()
+        filtered = data[data["Assigned Staff"] == unique].copy() if supply == True else data[data["Replaced Room"] == unique].copy()
 
         # Get periods that are already assigned for this supply
         assigned_periods = set(filtered["Period"])
@@ -160,12 +160,10 @@ def room_or_supply(data: pd.DataFrame, supply=False):
             index=False,
             escape=False,
             classes=["cover-table", "supply-table" if supply else "room-table"],
-            columns=["Period", "Activity", "Teacher to Cover", "Room", "Time"] if supply else ["Period", "Activity", "Assigned Room", "Time"],
-        )
-
-        table_html.replace(
+            columns=["Period", "Activity", "Teacher to Cover", "Room", "Time"] if supply else ["Period", "Activity", "Assigned Room"],
+        ).replace(
             "<thead>",
-            header(f"{unique} Cover Assignments - {formatted_date}" if supply else f"Room Changes for {unique} - {formatted_date}", 5)
+            header(f"{unique} Cover Assignments - {formatted_date}" if supply else f"Room Changes for {unique} - {formatted_date}", 5 if supply else 3)
         )
 
         tables.append(table_html)
@@ -312,7 +310,7 @@ if do_email:
 else : 
     webbrowser.open(cover_output_path)
 
-supply_room_html = room_or_supply(
+supply_rooms = room_or_supply(
     simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Supply \d+", na=False)].rename(columns={"Replaced Staff": "Teacher to Cover", "Assigned Room": "Room"}, inplace=False),
     supply=True
 ) + room_or_supply(
@@ -320,7 +318,7 @@ supply_room_html = room_or_supply(
     supply=False
 )
 
-supply_room_html = "<br><br>".join(supply_room_html)
+supply_room_html = "<br><br>".join(supply_rooms)
 
 output_html = get_template().replace("{table}", supply_room_html)
 

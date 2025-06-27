@@ -94,6 +94,82 @@ cover_sheet["Rooms"] = cover_sheet["Rooms"].str.replace(r"[()]", "", regex=True)
 cover_sheet["Staff or Room to replace"] = cover_sheet["Staff or Room to replace"].str.replace(r"[()]", "", regex=True)
 # DATAFRAME + CLEANUP END
 
+# FUNCTIONS
+
+def header(text, colspan):
+    return f"""
+    <thead>
+        <tr>
+            <th colspan="{colspan}">
+                {text}
+            </th>
+        </tr>
+    """
+
+def get_template():
+    with open(Path.joinpath(Path.cwd(), templates_folder, "table_template.html"), "r", encoding="utf-8") as template:
+        return template.read()
+    
+def save_output(html_output, filename):
+    output_path = Path.joinpath(Path.cwd(), outputs_folder, filename)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(html_output)
+    return output_path
+
+def room_or_supply(data: pd.DataFrame, supply=False):
+    uniques = sorted(data["Replaced Room"].unique())
+    tables = []
+    for unique in uniques:
+        filtered = data[data["Assigned Staff" if supply == True else "Assigned Room"] == unique].copy()
+
+        # Get periods that are already assigned for this supply
+        assigned_periods = set(filtered["Period"])
+
+        # Fill in missing periods
+        missing = [p for p in periods.values() if p['label'] not in assigned_periods]
+
+        for p in missing:
+            time = p["time"]
+            label = p["label"]
+            filtered = pd.concat([
+                filtered,
+                pd.DataFrame([{
+                    "Day": "",
+                    "Period": label,
+                    "Activity": "",
+                    "Teacher to Cover": "",
+                    "Room": "",
+                    "Time": time
+                }]) if supply else pd.DataFrame([{
+                    "Day": "",
+                    "Period": label,
+                    "Activity": "",
+                    "Assigned Room": "",
+                    "Time": time
+                }])
+            ], ignore_index=True)
+
+        filtered["SortKey"] = filtered["Time"]
+        filtered.sort_values(by="SortKey", inplace=True)
+        filtered.drop(columns=["SortKey"], inplace=True)
+
+        if filtered.empty:
+            continue
+
+        table_html = filtered.to_html(
+            index=False,
+            escape=False,
+            classes=["cover-table", "supply-table" if supply else "room-table"],
+            columns=["Period", "Activity", "Teacher to Cover", "Room", "Time"],
+        )
+
+        table_html.replace(
+            "<thead>",
+            header(f"{unique} Cover Assignments - {formatted_date}" if supply else f"Room Changes for {unique} - {formatted_date}", 5)
+        )
+
+        tables.append(table_html)
+    return tables
 
 def get_time(row):
     return periods.get(row['Period'])['time']
@@ -121,6 +197,8 @@ def normalize_rooms(val):
     targets = [re.search(classroom_pattern, p) for p in parts[1:]]
     targets = [m.group(1) for m in targets if m]
     return f"{first}, {', '.join(targets)}" if targets else first
+
+# FUNCTIONS END
 
 cover_sheet["Rooms"] = cover_sheet["Rooms"].apply(normalize_rooms)
 
@@ -197,8 +275,7 @@ simplified_sheet["SortKey"] = simplified_sheet["Activity"].apply(extract_year)
 simplified_sheet.sort_values(by=["Time", "SortKey", "Activity"], inplace=True)
 simplified_sheet.drop(columns=["SortKey"], inplace=True)
 
-
-
+# ABOVE IS CONSISTENT FOR ALL TABLES
 
 if simplified_sheet['Times'].dropna().eq("").all():
     # All empty or blank
@@ -216,179 +293,35 @@ else:
         columns=["Period", "Activity", "Replaced Staff", "Replaced Room", "Assigned Staff", "Assigned Room", "Times"]
     )
 
-
-# Replace <thead> in the original table with our big header + the original header
 html_table = html_table.replace(
     "<thead>",
-    big_header + "<thead>"
+    header(f"Cover and Room Change Summary<br>{formatted_date}", 7 if "Times" in simplified_sheet.columns else 6)
 )
 
-with open(Path.joinpath(Path.cwd(),templates_folder, "table_template.html"), "r", encoding="utf-8") as template:
-    templateHtml = template.read()
-    html_output = templateHtml.replace("{html_table}", html_table)
-
-    cover_output_path = Path.joinpath(Path.cwd(), outputs_folder, "simplified_sheet.html")
-    with open(cover_output_path, "w", encoding="utf-8") as f:
-        f.write(html_output)
-    
-    if do_email:
-        outlook = client.Dispatch('Outlook.Application')
-        message = outlook.CreateItem(0)
-        message.Subject = 'Cover & Room Change Summary - '+ formatted_date
-        message.To = "allutcolpstaff@utcsheffield.org.uk"
-        message.HTMLBody = html_output
+html_output = get_template().replace("{table}", html_table)
+cover_output_path = save_output(html_output, "cover_sheet.html")
         
-        message.Display()
-    else : 
-        webbrowser.open(cover_output_path)
+if do_email:
+    outlook = client.Dispatch('Outlook.Application')
+    message = outlook.CreateItem(0)
+    message.Subject = 'Cover & Room Change Summary - '+ formatted_date
+    message.To = "allutcolpstaff@utcsheffield.org.uk"
+    message.HTMLBody = html_output
+        
+    message.Display()
+else : 
+    webbrowser.open(cover_output_path)
 
-# Only keep rows where Assigned Staff is like "Supply 1", "Supply 2", etc.
-supply_rows = simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Supply \d+", na=False)].rename(columns={"Replaced Staff": "Teacher to Cover", "Assigned Room": "Room"}, inplace=False)
-room_rows = simplified_sheet[simplified_sheet["Replaced Room"].str.match(classroom_pattern, na=False)]
+supply_room_html = room_or_supply(
+    simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Supply \d+", na=False)].rename(columns={"Replaced Staff": "Teacher to Cover", "Assigned Room": "Room"}, inplace=False),
+    supply=True
+) + room_or_supply(
+    simplified_sheet[simplified_sheet["Replaced Room"].str.match(classroom_pattern, na=False)],
+    supply=False
+)
 
-# Get unique supply teachers, e.g. ["Supply 1", "Supply 2"]
-unique_supply_staff = sorted(supply_rows["Assigned Staff"].unique())
-unique_room_changes = sorted(room_rows["Replaced Room"].unique())
-supply_room_tables = []
-for supply in unique_supply_staff:
-    filtered = supply_rows[supply_rows["Assigned Staff"] == supply].copy()
+output_html = get_template().replace("{table}", supply_room_html)
 
-    # Get periods that are already assigned for this supply
-    assigned_periods = set(filtered["Period"])
-
-    # Fill in missing periods
-    missing = [p for p in periods.values() if p['label'] not in assigned_periods]
-
-    for p in missing:
-        time = p["time"]
-        label = p["label"]
-        filtered = pd.concat([
-            filtered,
-            pd.DataFrame([{
-                "Day": "",
-                "Period": label,
-                "Activity": "",
-                "Teacher to Cover": "",
-                "Room": "",
-                "Time": time
-            }])
-        ], ignore_index=True)
-
-    filtered["IsFree"] = filtered.get("IsFree", False)
-
-
-    # Sort to keep order
-    filtered["SortKey"] = filtered["Time"]
-    filtered.sort_values(by="SortKey", inplace=True)
-    filtered.drop(columns=["SortKey"], inplace=True)
-
-
-    if filtered.empty:
-        continue
-
-    table_html = filtered.to_html(
-        index=False,
-        escape=False,
-        classes=["cover-table", "supply-table"],
-        columns=["Period", "Activity", "Teacher to Cover", "Room", "Time"],
-    )
-
-    num_cols = len(filtered.columns)
-
-    # Create the header row
-    big_header = f"""
-    <thead>
-        <tr>
-            <th colspan="{num_cols}" style="text-align:center; font-size:24px; padding:10px;">
-                {supply} Cover Assignments – {formatted_date}
-            </th>
-        </tr>
-    </thead>
-    """
-
-    # Replace <thead> in the original table with our big header + the original header
-    table_html = table_html.replace(
-        "<thead>",
-        big_header + "<thead>"
-    )
-
-    # Add section header + table
-    supply_room_tables.append(table_html)
-    
-for room in unique_room_changes:
-    filtered = simplified_sheet[simplified_sheet["Replaced Room"] == room].copy()
-
-    # Get periods that are already assigned for this supply
-    assigned_periods = set(filtered["Period"])
-
-    # Fill in missing periods
-    missing = [p for p in periods.values() if p['label'] not in assigned_periods]
-
-    for p in missing:
-        time = p["time"]
-        label = p["label"]
-        filtered = pd.concat([
-            filtered,
-            pd.DataFrame([{
-                "Day": "",
-                "Period": label,
-                "Activity": "",
-                "Replaced Room": "",
-                "Assigned Room": "",
-                "Time": time
-            }])
-        ], ignore_index=True)
-
-    # Sort to keep order
-    filtered["SortKey"] = filtered["Time"]
-    filtered.sort_values(by="SortKey", inplace=True)
-    filtered.drop(columns=["SortKey"], inplace=True)
-
-
-    if filtered.empty:
-        continue
-
-    table_html = filtered.to_html(
-        index=False,
-        escape=False,
-        classes=["cover-table", "room-table"],
-        columns=["Period", "Activity", "Assigned Room"],
-    )
-
-    num_cols = len(filtered.columns)
-
-    # Create the header row
-    big_header = f"""
-    <thead>
-        <tr>
-            <th colspan="{num_cols}" style="text-align:center; font-size:24px; padding:10px;">
-                Room Changes for {room} – {formatted_date}
-            </th>
-        </tr>
-    </thead>
-    """
-
-    # Replace <thead> in the original table with our big header + the original header
-    table_html = table_html.replace(
-        "<thead>",
-        big_header + "<thead>"
-    )
-
-    # Add section header + table
-    supply_room_tables.append(table_html)
-
-supply_html = "<br><br>".join(supply_room_tables)
-
-# For example, inject into a placeholder in template
-with open( Path.joinpath(Path.cwd(),templates_folder, "table_template.html"), "r", encoding="utf-8") as template:
-    template_html = template.read()
-
-output_html = template_html.replace("{html_table}", supply_html)
-
-supply_output_path = Path.joinpath(Path.cwd(), outputs_folder, "supply_tables.html")
-with open(supply_output_path, "w", encoding="utf-8") as f:
-    f.write(output_html)
+supply_output_path = save_output(output_html, "supply_sheet.html")
 
 webbrowser.open(supply_output_path)
-
-

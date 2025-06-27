@@ -117,7 +117,7 @@ def save_output(html_output, filename):
     return output_path
 
 def room_or_supply(data: pd.DataFrame, supply=False):
-    uniques = sorted(data["Replaced Room"].unique())
+    uniques = sorted(data["Teacher to Cover"].unique()) if supply else sorted(data["Replaced Room"].unique())
     tables = []
     for unique in uniques:
         filtered = data[data["Assigned Staff" if supply == True else "Assigned Room"] == unique].copy()
@@ -160,7 +160,7 @@ def room_or_supply(data: pd.DataFrame, supply=False):
             index=False,
             escape=False,
             classes=["cover-table", "supply-table" if supply else "room-table"],
-            columns=["Period", "Activity", "Teacher to Cover", "Room", "Time"],
+            columns=["Period", "Activity", "Teacher to Cover", "Room", "Time"] if supply else ["Period", "Activity", "Assigned Room", "Time"],
         )
 
         table_html.replace(
@@ -319,6 +319,8 @@ supply_room_html = room_or_supply(
     simplified_sheet[simplified_sheet["Replaced Room"].str.match(classroom_pattern, na=False)],
     supply=False
 )
+
+supply_room_html = "<br><br>".join(supply_room_html)
 
 output_html = get_template().replace("{table}", supply_room_html)
 

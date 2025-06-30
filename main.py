@@ -324,4 +324,4 @@ supply_output_path = save_output(output_html, "supply_sheet.html")
 
 webbrowser.open(supply_output_path)
 
-os.remove(data_file_path)
+os.rename(data_file_path, data_file_path.replace("Notice Board Summary", f"Notice Board Summary_{date_text}"))

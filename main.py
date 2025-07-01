@@ -29,6 +29,8 @@ periods = {
     "5": { "time": "13:40-14:35", "label": "5" },
     "6": { "time": "14:35-15:30", "label": "6" },
 }
+subject_df = pd.read_csv("subject_codes.csv")
+subject_dict = dict(zip(subject_df["Subject code"], subject_df["Subject"]))
 classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
 staff_pattern = r"[A-Za-z]+, [A-Za-z ]+"
 columns = [
@@ -114,6 +116,15 @@ def save_output(html_output, filename):
         f.write(html_output)
     return output_path
 
+def get_subject(activity):
+    match = re.search(r"\/([A-Za-z]+)\d", activity)
+    if match:
+        subject_code = match.group(1)
+        subject = subject_dict.get(subject_code, "Unknown Subject")
+        return subject
+    else:
+        return ""
+
 def room_or_supply(data: pd.DataFrame, supply=False):
     uniques = sorted(data["Assigned Staff"].unique()) if supply else sorted(data["Replaced Room"].unique())
     tables = []
@@ -154,11 +165,17 @@ def room_or_supply(data: pd.DataFrame, supply=False):
         if filtered.empty:
             continue
 
+        filtered.insert(
+            cover_sheet.columns.get_loc("Activity"),
+            "Department",
+            filtered["Activity"].apply(get_subject)
+        )
+
         table_html = filtered.to_html(
             index=False,
             escape=False,
             classes=["cover-table", "supply-table" if supply else "room-table"],
-            columns=["Period", "Activity", "Teacher to Cover", "Room", "Time"] if supply else ["Period", "Activity", "Assigned Room"],
+            columns=["Period", "Activity", "Department", "Teacher to Cover", "Room", "Time"] if supply else ["Period", "Activity", "Assigned Room"],
         ).replace(
             "<thead>",
             header(f"{unique} Cover Assignments - {formatted_date}" if supply else f"Room Changes for {unique} - {formatted_date}", 5 if supply else 3)
@@ -324,4 +341,4 @@ supply_output_path = save_output(output_html, "supply_sheet.html")
 
 webbrowser.open(supply_output_path)
 
-os.rename(data_file_path, data_file_path.replace("Notice Board Summary", f"Notice Board Summary_{date_text}"))
+os.rename(data_file_path, str(data_file_path).replace("Notice Board Summary", f"Notice Board Summary_{date_text}")) if "test_data" not in str(data_file_path) else ""

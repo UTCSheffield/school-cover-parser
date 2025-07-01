@@ -29,8 +29,8 @@ periods = {
     "5": { "time": "13:40-14:35", "label": "5" },
     "6": { "time": "14:35-15:30", "label": "6" },
 }
-subject_df = pd.read_csv("subject_codes.csv")
-subject_dict = dict(zip(subject_df["Subject code"], subject_df["Subject"]))
+subject_df = pd.read_csv("class_codes_departments.csv")
+subject_dict = dict(zip(subject_df["Code"], subject_df["Department"]))
 classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
 staff_pattern = r"[A-Za-z]+, [A-Za-z ]+"
 columns = [
@@ -106,6 +106,15 @@ def header(text, colspan):
         </tr>
     """
 
+def email(subject, body, to=""):
+    outlook = client.Dispatch('Outlook.Application')
+    message = outlook.CreateItem(0)
+    message.Subject = subject
+    message.To = to
+    message.HTMLBody = body
+        
+    message.Display()
+
 def get_template():
     with open(Path.joinpath(Path.cwd(), templates_folder, "table_template.html"), "r", encoding="utf-8") as template:
         return template.read()
@@ -116,14 +125,28 @@ def save_output(html_output, filename):
         f.write(html_output)
     return output_path
 
-def get_subject(activity):
+def get_dept(activity):
     match = re.search(r"\/([A-Za-z]+)\d", activity)
     if match:
-        subject_code = match.group(1)
-        subject = subject_dict.get(subject_code, "Unknown Subject")
-        return subject
+        dept_code = match.group(1)
+        dept = subject_dict.get(dept_code, "<strong><p color='red'>Unknown Department</p></strong>")
+        return dept
     else:
         return ""
+    
+import re
+
+def get_staff_initials(name):
+    match = re.match(r"([A-Za-z]+),\s+[A-Za-z]+\s+([A-Za-z])", name)
+    if match:
+        last_name = match.group(1)
+        first_initial = match.group(2).upper()
+        last_initial = last_name[0].upper()
+        last_second_initial = last_name[1].upper()
+        initials = f"{first_initial}{last_initial}{last_second_initial}"
+        return f"{name} ({initials})"
+    return name
+
 
 def room_or_supply(data: pd.DataFrame, supply=False):
     uniques = sorted(data["Assigned Staff"].unique()) if supply else sorted(data["Replaced Room"].unique())
@@ -166,19 +189,21 @@ def room_or_supply(data: pd.DataFrame, supply=False):
             continue
 
         filtered.insert(
-            cover_sheet.columns.get_loc("Activity"),
+            filtered.columns.get_loc("Teacher to Cover"),
             "Department",
-            filtered["Activity"].apply(get_subject)
-        )
+            filtered["Activity"].apply(get_dept)
+        ) if supply else ""
+
+        filtered["Teacher to Cover"] = filtered["Teacher to Cover"].apply(get_staff_initials) if supply else ""
 
         table_html = filtered.to_html(
             index=False,
             escape=False,
             classes=["cover-table", "supply-table" if supply else "room-table"],
-            columns=["Period", "Activity", "Department", "Teacher to Cover", "Room", "Time"] if supply else ["Period", "Activity", "Assigned Room"],
+            columns=["Period", "Activity", "Teacher to Cover", "Department", "Room", "Time"] if supply else ["Period", "Activity", "Assigned Room"],
         ).replace(
             "<thead>",
-            header(f"{unique} Cover Assignments - {formatted_date}" if supply else f"Room Changes for {unique} - {formatted_date}", 5 if supply else 3)
+            header(f"{unique} Cover Assignments - {formatted_date}" if supply else f"Room Changes for {unique} - {formatted_date}", 6 if supply else 3)
         )
 
         tables.append(table_html)
@@ -210,7 +235,6 @@ def normalize_rooms(val):
     targets = [re.search(classroom_pattern, p) for p in parts[1:]]
     targets = [m.group(1) for m in targets if m]
     return f"{first}, {', '.join(targets)}" if targets else first
-
 # FUNCTIONS END
 
 cover_sheet["Rooms"] = cover_sheet["Rooms"].apply(normalize_rooms)
@@ -313,15 +337,12 @@ html_table = html_table.replace(
 
 html_output = get_template().replace("{table}", html_table)
 cover_output_path = save_output(html_output, "cover_sheet.html")
-        
+
 if do_email:
-    outlook = client.Dispatch('Outlook.Application')
-    message = outlook.CreateItem(0)
-    message.Subject = 'Cover & Room Change Summary - '+ formatted_date
-    message.To = "allutcolpstaff@utcsheffield.org.uk"
-    message.HTMLBody = html_output
-        
-    message.Display()
+    email(
+        subject=f"Cover & Room Change Summary - {formatted_date}",
+        body=html_output,
+        to="allutcolpstaff@utcsheffield.org.uk")
 else : 
     webbrowser.open(cover_output_path)
 

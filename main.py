@@ -6,6 +6,8 @@ from pathlib import Path
 import webbrowser
 import win32com.client as client
 import os
+from playwright.sync_api import sync_playwright
+from PIL import Image
 
 # PARAMETERS
 do_email = False
@@ -133,8 +135,6 @@ def get_dept(activity):
         return dept
     else:
         return ""
-    
-import re
 
 def get_staff_initials(name):
     match = re.match(r"([A-Za-z]+),\s+[A-Za-z]+\s+([A-Za-z])", name)
@@ -207,6 +207,18 @@ def room_or_supply(data: pd.DataFrame, supply=False):
         )
 
         tables.append(table_html)
+
+        if supply == False:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(viewport={"width": 800, "height": 600})
+                page = context.new_page()
+                page.set_content(get_template().replace("{table}", table_html), wait_until='networkidle')
+                page.screenshot(path=Path.joinpath(Path.cwd(), outputs_folder, f"{unique}.png"), clip={"x": 0, "y": 0, "width": 800, "height": 600})
+                browser.close()
+            with Image.open(Path.joinpath(Path.cwd(), outputs_folder, f"{unique}.png")) as img:
+                rotated = img.rotate(90, expand=True)
+                rotated.save(Path.joinpath(Path.cwd(), outputs_folder, f"{unique}.png"))
     return tables
 
 def get_time(row):

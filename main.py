@@ -7,7 +7,7 @@ import webbrowser
 import win32com.client as client
 import os
 from playwright.sync_api import sync_playwright
-from PIL import Image
+from PIL import Image, ImageOps
 
 # PARAMETERS
 do_email = False
@@ -216,9 +216,26 @@ def room_or_supply(data: pd.DataFrame, supply=False):
                 page.set_content(get_template().replace("{table}", table_html), wait_until='networkidle')
                 page.screenshot(path=Path.joinpath(Path.cwd(), outputs_folder, f"{unique}.png"), clip={"x": 0, "y": 0, "width": 800, "height": 600})
                 browser.close()
-            with Image.open(Path.joinpath(Path.cwd(), outputs_folder, f"{unique}.png")) as img:
-                rotated = img.rotate(90, expand=True)
-                rotated.save(Path.joinpath(Path.cwd(), outputs_folder, f"{unique}.png"))
+
+            path = Path.cwd() / outputs_folder / f"{unique}.png"
+
+            with Image.open(path) as img:
+                # Rotate the image 90 degrees clockwise
+                img = img.rotate(-90, expand=True)
+
+                # Convert to grayscale (equivalent to setting type = 'grayscale' and colorspace = 'gray')
+                img = img.convert("L")  # "L" = 8-bit pixels, black and white
+
+                # Quantize to 256 grayscale colors (Pillow will do this automatically after conversion to 'L')
+                img = img.quantize(colors=256, method=Image.FASTOCTREE)
+
+                # Remove alpha channel by pasting onto white background if it exists
+                if img.mode in ("RGBA", "LA") or (img.mode == "P" and 'transparency' in img.info):
+                    background = Image.new("L", img.size, 255)  # White background in grayscale
+                    img = Image.composite(img.convert("L"), background, img.convert("L"))
+
+                # Save the modified image (overwrites original)
+                img.save(path)
     return tables
 
 def get_time(row):

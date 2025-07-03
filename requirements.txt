@@ -2,4 +2,4 @@ pandas
 bs4
 pywin32
 playwright
-pillow
+wand

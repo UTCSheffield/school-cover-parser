@@ -211,17 +211,17 @@ def room_or_supply(data: pd.DataFrame, supply=False):
         if supply == False:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
-                context = browser.new_context(viewport={"width": 800, "height": 600})
+                context = browser.new_context(viewport={"width": 300, "height": 400})
                 page = context.new_page()
                 page.set_content(get_template().replace("{table}", table_html), wait_until='networkidle')
-                page.screenshot(path=Path.joinpath(Path.cwd(), outputs_folder, f"{unique}.png"), clip={"x": 0, "y": 0, "width": 800, "height": 600})
+                page.screenshot(path=Path.joinpath(Path.cwd(), outputs_folder, f"{unique}.png"), clip={"x": 0, "y": 0, "width": 300, "height": 400})
                 browser.close()
 
             path = Path.cwd() / outputs_folder / f"{unique}.png"
 
             with Image.open(path) as img:
                 # Rotate the image 90 degrees clockwise
-                img = img.rotate(-90, expand=True)
+                #img = img.rotate(-90, expand=True)
 
                 # Convert to grayscale (equivalent to setting type = 'grayscale' and colorspace = 'gray')
                 img = img.convert("L")  # "L" = 8-bit pixels, black and white

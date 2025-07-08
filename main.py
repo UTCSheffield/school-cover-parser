@@ -6,8 +6,8 @@ from pathlib import Path
 import webbrowser
 import win32com.client as client
 import os
-from playwright.sync_api import sync_playwright
-from PIL import Image
+# from playwright.sync_api import sync_playwright
+# from PIL import Image
 
 # PARAMETERS
 do_email = False
@@ -18,18 +18,18 @@ data_filename = "Notice Board Summary.html"
 outputs_folder = "outputs"
 templates_folder = "templates"
 periods = {
-    "MM": { "time": "08:30-08:45", "label": "MM" },
-    "1": { "time": "08:45-09:40", "label": "1" },
-    "2": { "time": "09:40-10:30", "label": "2" },
-    "Tut": { "time": "10:30-10:45", "label": "Tutor A"},
-    "Tut [1]": { "time": "10:45-11:00", "label": "Tutor B"},
-    "Tut [1] [2]": { "time": "11:00-11:15", "label": "Tutor C"},
-    "3": { "time": "11:15-12:10", "label": "3"},
-    "4a": { "time": "12:10-12:40", "label": "4a"},
-    "4":{ "time": "12:40-13:10", "label": "4b"},
-    "4c": { "time": "13:10-13:40", "label": "4c"},
-    "5": { "time": "13:40-14:35", "label": "5" },
-    "6": { "time": "14:35-15:30", "label": "6" },
+    "MM": {"time": "08:30-08:45", "label": "MM"},
+    "1": {"time": "08:45-09:40", "label": "1"},
+    "2": {"time": "09:40-10:30", "label": "2"},
+    "Tut": {"time": "10:30-10:45", "label": "Tutor A"},
+    "Tut [1]": {"time": "10:45-11:00", "label": "Tutor B"},
+    "Tut [1] [2]": {"time": "11:00-11:15", "label": "Tutor C"},
+    "3": {"time": "11:15-12:10", "label": "3"},
+    "4a": {"time": "12:10-12:40", "label": "4a"},
+    "4": {"time": "12:40-13:10", "label": "4b"},
+    "4c": {"time": "13:10-13:40", "label": "4c"},
+    "5": {"time": "13:40-14:35", "label": "5"},
+    "6": {"time": "14:35-15:30", "label": "6"},
 }
 subject_df = pd.read_csv("class_codes_departments.csv")
 subject_dict = dict(zip(subject_df["Code"], subject_df["Department"]))
@@ -47,7 +47,7 @@ data_file_path = Path.joinpath(Path.home(), "Downloads", data_filename)
 if not Path(data_file_path).is_file():
     data_file_path = Path.joinpath(Path.cwd(), "test_data", data_filename)
     if not Path(data_file_path).is_file():
-        raise ValueError("Data file not found. Please ensure the HTML file is in the Downloads folder or in test_data folder.")
+        raise ValueError("Data file not found.")
 
 with open(data_file_path, "r", encoding="utf-8") as file:
     soup = BeautifulSoup(file, "html.parser")
@@ -86,7 +86,8 @@ if date_text:
 # DATAFRAME + CLEANUP
 cover_sheet = pd.DataFrame(data, columns=columns)
 
-cover_sheet = cover_sheet.dropna(subset=["Staff or Room to replace", "Assigned Staff or Room"])
+cover_sheet = cover_sheet.dropna(subset=["Staff or Room to replace",
+                                         "Assigned Staff or Room"])
 cover_sheet.drop(columns=["Reason"], inplace=True)
 cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"].str.contains("No Cover Required", na=False)]
 cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains(":Enr|Mon:6|Fri:6")]
@@ -98,6 +99,7 @@ cover_sheet["Staff or Room to replace"] = cover_sheet["Staff or Room to replace"
 
 # FUNCTIONS
 
+
 def header(text, colspan):
     return f"""
     <thead>
@@ -108,24 +110,27 @@ def header(text, colspan):
         </tr>
     """
 
+
 def email(subject, body, to=""):
     outlook = client.Dispatch('Outlook.Application')
     message = outlook.CreateItem(0)
     message.Subject = subject
     message.To = to
     message.HTMLBody = body
-        
     message.Display()
+
 
 def get_template():
     with open(Path.joinpath(Path.cwd(), templates_folder, "table_template.html"), "r", encoding="utf-8") as template:
         return template.read()
-    
+
+
 def save_output(html_output, filename):
     output_path = Path.joinpath(Path.cwd(), outputs_folder, filename)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html_output)
     return output_path
+
 
 def get_dept(activity):
     match = re.search(r"\/([A-Za-z]+)\d", activity)
@@ -135,6 +140,7 @@ def get_dept(activity):
         return dept
     else:
         return ""
+
 
 def get_staff_initials(name):
     match = re.match(r"([A-Za-z]+),\s+[A-Za-z]+\s+([A-Za-z])", name)
@@ -152,7 +158,7 @@ def room_or_supply(data: pd.DataFrame, supply=False):
     uniques = sorted(data["Assigned Staff"].unique()) if supply else sorted(data["Replaced Room"].unique())
     tables = []
     for unique in uniques:
-        filtered = data[data["Assigned Staff"] == unique].copy() if supply == True else data[data["Replaced Room"] == unique].copy()
+        filtered = data[data["Assigned Staff"] == unique].copy() if supply is True else data[data["Replaced Room"] == unique].copy()
 
         # Get periods that are already assigned for this supply
         assigned_periods = set(filtered["Period"])
@@ -208,7 +214,7 @@ def room_or_supply(data: pd.DataFrame, supply=False):
 
         tables.append(table_html)
 
-        if supply == False:
+        """if supply == False:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
                 context = browser.new_context(viewport={"width": 300, "height": 400})
@@ -235,11 +241,13 @@ def room_or_supply(data: pd.DataFrame, supply=False):
                     img = Image.composite(img.convert("L"), background, img.convert("L"))
 
                 # Save the modified image (overwrites original)
-                img.save(path)
+                img.save(path)"""
     return tables
+
 
 def get_time(row):
     return periods.get(row['Period'])['time']
+
 
 def label_period(row):
     return periods[row['Period']]['label']# if 'label' in periods[row['Period']] else row['Period']
@@ -265,6 +273,7 @@ def normalize_rooms(val):
     targets = [m.group(1) for m in targets if m]
     return f"{first}, {', '.join(targets)}" if targets else first
 # FUNCTIONS END
+
 
 cover_sheet["Rooms"] = cover_sheet["Rooms"].apply(normalize_rooms)
 
@@ -324,7 +333,7 @@ merged_df = merged_df[[
 
 merged_df.drop_duplicates(inplace=True)
 
-#Simplified DataFrame start
+# Simplified DataFrame start
 
 simplified_sheet = merged_df
 simplified_sheet = simplified_sheet.fillna("")
@@ -372,7 +381,7 @@ if do_email:
         subject=f"Cover & Room Change Summary - {formatted_date}",
         body=html_output,
         to="allutcolpstaff@utcsheffield.org.uk")
-else : 
+else:
     webbrowser.open(cover_output_path)
 
 supply_rooms = room_or_supply(

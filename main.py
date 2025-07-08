@@ -7,7 +7,7 @@ import webbrowser
 import win32com.client as client
 import os
 from playwright.sync_api import sync_playwright
-from PIL import Image, ImageOps
+from PIL import Image
 
 # PARAMETERS
 do_email = False

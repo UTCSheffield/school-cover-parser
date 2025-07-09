@@ -1,23 +1,26 @@
-from bs4 import BeautifulSoup
-import pandas as pd
-import re
-from datetime import datetime
+"""
+Script to convert SIMS Notice Board Summary to a nicer output
+"""
+import os
 from pathlib import Path
 import webbrowser
-import win32com.client as client
-import os
+import re
+from datetime import datetime
+from bs4 import BeautifulSoup
+import pandas as pd
+from win32com import client
 # from playwright.sync_api import sync_playwright
 # from PIL import Image
 
 # PARAMETERS
-do_email = False
+DO_EMAIL = False
 # PARAMETERS END
 
 # CONSTANTS
-data_filename = "Notice Board Summary.html"
-outputs_folder = "outputs"
-templates_folder = "templates"
-periods = {
+DATA_FILENAME = "Notice Board Summary.html"
+OUTPUTS_FOLDER = "outputs"
+TEMPLATES_FOLDER = "templates"
+PERIODS = {
     "MM": {"time": "08:30-08:45", "label": "MM"},
     "1": {"time": "08:45-09:40", "label": "1"},
     "2": {"time": "09:40-10:30", "label": "2"},
@@ -31,21 +34,21 @@ periods = {
     "5": {"time": "13:40-14:35", "label": "5"},
     "6": {"time": "14:35-15:30", "label": "6"},
 }
-subject_df = pd.read_csv("class_codes_departments.csv")
-subject_dict = dict(zip(subject_df["Code"], subject_df["Department"]))
-classroom_pattern = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
-staff_pattern = r"[A-Za-z]+, [A-Za-z ]+"
-columns = [
+SUBJECT_DF = pd.read_csv("class_codes_departments.csv")
+SUBJECT_DICT = dict(zip(SUBJECT_DF["Code"], SUBJECT_DF["Department"]))
+CLASSROOM_PATTERN = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
+STAFF_PATTERN = r"[A-Za-z]+, [A-Za-z ]+"
+COLUMNS = [
     "Period", "Staff or Room to replace", "Reason", "Activity",
     "Rooms", "Staff", "Assigned Staff or Room", "Times"
 ]
 # CONSTANTS END
 
 # LOAD DATA
-data_file_path = Path.joinpath(Path.home(), "Downloads", data_filename)
+data_file_path = Path.joinpath(Path.home(), "Downloads", DATA_FILENAME)
 
 if not Path(data_file_path).is_file():
-    data_file_path = Path.joinpath(Path.cwd(), "test_data", data_filename)
+    data_file_path = Path.joinpath(Path.cwd(), "test_data", DATA_FILENAME)
     if not Path(data_file_path).is_file():
         raise ValueError("Data file not found.")
 
@@ -65,15 +68,16 @@ for row in rows:
 # LOAD DATA END
 
 # DATE EXTRACTION
-date_text = ""
+date_text = ""  # pylint: disable=C0103
 for string in soup.stripped_strings:
     if "Full List of Staff and Room Details:" in string:
-        match = re.search(r"Full List of Staff and Room Details:\s*(\d{1,2}-[A-Za-z]{3}-\d{4})", string)
+        match = re.search(r"Full List of Staff and Room Details:" +
+                          r"\s*(\d{1,2}-[A-Za-z]{3}-\d{4})", string)
         if match:
             date_text = match.group(1)
             break
 
-formatted_date = "Unknown Date"
+formatted_date = "Unknown Date"  # pylint: disable=C0103
 
 if date_text:
     try:
@@ -84,17 +88,23 @@ if date_text:
 # DATE EXTRACTION END
 
 # DATAFRAME + CLEANUP
-cover_sheet = pd.DataFrame(data, columns=columns)
+cover_sheet = pd.DataFrame(data, columns=COLUMNS)
 
 cover_sheet = cover_sheet.dropna(subset=["Staff or Room to replace",
                                          "Assigned Staff or Room"])
 cover_sheet.drop(columns=["Reason"], inplace=True)
-cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"].str.contains("No Cover Required", na=False)]
-cover_sheet = cover_sheet[~cover_sheet["Period"].str.contains(":Enr|Mon:6|Fri:6")]
-cover_sheet = cover_sheet[~cover_sheet["Activity"].str.contains("-")]
+cover_sheet = cover_sheet[~cover_sheet["Assigned Staff or Room"]
+                          .str.contains("No Cover Required", na=False)]
+cover_sheet = cover_sheet[~cover_sheet["Period"]
+                          .str.contains(":Enr|Mon:6|Fri:6")]
+cover_sheet = cover_sheet[~cover_sheet["Activity"]
+                          .str.contains("-")]
 
-cover_sheet["Rooms"] = cover_sheet["Rooms"].str.replace(r"[()]", "", regex=True)
-cover_sheet["Staff or Room to replace"] = cover_sheet["Staff or Room to replace"].str.replace(r"[()]", "", regex=True)
+cover_sheet["Rooms"] = cover_sheet["Rooms"].str.replace(r"[()]", "",
+                                                        regex=True)
+cover_sheet["Staff or Room to replace"] = (
+    cover_sheet["Staff or Room to replace"].str.replace(r"[()]", "",
+                                                        regex=True))
 # DATAFRAME + CLEANUP END
 
 # FUNCTIONS
@@ -121,32 +131,35 @@ def email(subject, body, to=""):
 
 
 def get_template():
-    with open(Path.joinpath(Path.cwd(), templates_folder, "table_template.html"), "r", encoding="utf-8") as template:
+    '''Returns the HTML template'''
+    template_path = Path.joinpath(Path.cwd(), TEMPLATES_FOLDER,
+                              "table_template.html")
+    with open(template_path, "r", encoding="utf-8") as template:
         return template.read()
 
 
-def save_output(html_output, filename):
-    output_path = Path.joinpath(Path.cwd(), outputs_folder, filename)
+def save_output(content, filename):
+    '''Function to save output to a file'''
+    output_path = Path.joinpath(Path.cwd(), OUTPUTS_FOLDER, filename)
     with open(output_path, "w", encoding="utf-8") as f:
-        f.write(html_output)
+        f.write(content)
     return output_path
 
 
 def get_dept(activity):
-    match = re.search(r"\/([A-Za-z]+)\d", activity)
+    dept_match = re.search(r"\/([A-Za-z]+)\d", activity)
     if match:
-        dept_code = match.group(1)
-        dept = subject_dict.get(dept_code, "<strong><p color='red'>Unknown Department</p></strong>")
+        dept_code = dept_match.group(1)
+        dept = SUBJECT_DICT.get(dept_code, "<strong><p color='red'>Unknown Department</p></strong>")
         return dept
-    else:
-        return ""
+    return ""
 
 
 def get_staff_initials(name):
-    match = re.match(r"([A-Za-z]+),\s+[A-Za-z]+\s+([A-Za-z])", name)
-    if match:
-        last_name = match.group(1)
-        first_initial = match.group(2).upper()
+    initial_match = re.match(r"([A-Za-z]+),\s+[A-Za-z]+\s+([A-Za-z])", name)
+    if initial_match:
+        last_name = initial_match.group(1)
+        first_initial = initial_match.group(2).upper()
         last_initial = last_name[0].upper()
         last_second_initial = last_name[1].upper()
         initials = f"{first_initial}{last_initial}{last_second_initial}"
@@ -164,7 +177,7 @@ def room_or_supply(data: pd.DataFrame, supply=False):
         assigned_periods = set(filtered["Period"])
 
         # Fill in missing periods
-        missing = [p for p in periods.values() if p['label'] not in assigned_periods]
+        missing = [p for p in PERIODS.values() if p['label'] not in assigned_periods]
 
         for p in missing:
             time = p["time"]

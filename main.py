@@ -68,7 +68,7 @@ for row in rows:
 # LOAD DATA END
 
 # DATE EXTRACTION
-date_text = ""  # pylint: disable=C0103
+date_text = ""
 for string in soup.stripped_strings:
     if "Full List of Staff and Room Details:" in string:
         match = re.search(r"Full List of Staff and Room Details:" +
@@ -77,7 +77,7 @@ for string in soup.stripped_strings:
             date_text = match.group(1)
             break
 
-formatted_date = "Unknown Date"  # pylint: disable=C0103
+formatted_date = "Unknown Date"
 
 if date_text:
     try:
@@ -133,7 +133,7 @@ def email(subject, body, to=""):
 def get_template():
     '''Returns the HTML template'''
     template_path = Path.joinpath(Path.cwd(), TEMPLATES_FOLDER,
-                              "table_template.html")
+                                  "table_template.html")
     with open(template_path, "r", encoding="utf-8") as template:
         return template.read()
 
@@ -150,7 +150,10 @@ def get_dept(activity):
     dept_match = re.search(r"\/([A-Za-z]+)\d", activity)
     if match:
         dept_code = dept_match.group(1)
-        dept = SUBJECT_DICT.get(dept_code, "<strong><p color='red'>Unknown Department</p></strong>")
+        dept = SUBJECT_DICT.get(dept_code,
+                                """<strong>
+                                <p color='red'>Unknown Department
+                                </p></strong>""")
         return dept
     return ""
 
@@ -168,16 +171,20 @@ def get_staff_initials(name):
 
 
 def room_or_supply(data: pd.DataFrame, supply=False):
-    uniques = sorted(data["Assigned Staff"].unique()) if supply else sorted(data["Replaced Room"].unique())
+    uniques = sorted(data["Assigned Staff"].unique()) if supply else sorted(
+        data["Replaced Room"].unique())
     tables = []
     for unique in uniques:
-        filtered = data[data["Assigned Staff"] == unique].copy() if supply is True else data[data["Replaced Room"] == unique].copy()
+        filtered = (data[data["Assigned Staff"] == unique].copy()
+                    if supply is True else
+                    data[data["Replaced Room"] == unique].copy())
 
         # Get periods that are already assigned for this supply
         assigned_periods = set(filtered["Period"])
 
         # Fill in missing periods
-        missing = [p for p in PERIODS.values() if p['label'] not in assigned_periods]
+        missing = [(p for p in PERIODS.values()
+                    if p['label'] not in assigned_periods)]
 
         for p in missing:
             time = p["time"]
@@ -213,45 +220,55 @@ def room_or_supply(data: pd.DataFrame, supply=False):
             filtered["Activity"].apply(get_dept)
         ) if supply else ""
 
-        filtered["Teacher to Cover"] = filtered["Teacher to Cover"].apply(get_staff_initials) if supply else ""
+        filtered["Teacher to Cover"] = filtered["Teacher to Cover"].apply(
+            get_staff_initials) if supply else ""
 
         table_html = filtered.to_html(
             index=False,
             escape=False,
-            classes=["cover-table", "supply-table" if supply else "room-table"],
-            columns=["Period", "Activity", "Teacher to Cover", "Department", "Room", "Time"] if supply else ["Period", "Activity", "Assigned Room"],
+            classes=[("cover-table", "supply-table"
+                      if supply else "room-table")],
+            columns=(["Period", "Activity", "Teacher to Cover",
+                      "Department", "Room", "Time"]
+                     if supply else ["Period", "Activity", "Assigned Room"]),
         ).replace(
             "<thead>",
-            header(f"{unique} Cover Assignments - {formatted_date}" if supply else f"Room Changes for {unique} - {formatted_date}", 6 if supply else 3)
+            header(f"{unique} Cover Assignments - {formatted_date}"
+                   if supply else
+                   f"Room Changes for {unique} - {formatted_date}", 6
+                   if supply else 3)
         )
 
         tables.append(table_html)
 
-        """if supply == False:
+        """if not supply:
             with sync_playwright() as p:
                 browser = p.chromium.launch(headless=True)
-                context = browser.new_context(viewport={"width": 300, "height": 400})
+                context = browser.new_context(
+                    viewport={"width": 300, "height": 400})
                 page = context.new_page()
-                page.set_content(get_template().replace("{table}", table_html), wait_until='networkidle')
-                page.screenshot(path=Path.joinpath(Path.cwd(), outputs_folder, f"{unique}.png"), clip={"x": 0, "y": 0, "width": 300, "height": 400})
+                page.set_content(get_template().replace("{table}", table_html),
+                                 wait_until='networkidle')
+                page.screenshot(path=Path.joinpath(Path.cwd(),
+                                OUTPUTS_FOLDER, f"{unique}.png"),
+                                clip={"x": 0, "y": 0, "width": 300,
+                                      "height": 400})
                 browser.close()
 
-            path = Path.cwd() / outputs_folder / f"{unique}.png"
+            path = Path.cwd() / OUTPUTS_FOLDER / f"{unique}.png"
 
             with Image.open(path) as img:
-                # Rotate the image 90 degrees clockwise
-                #img = img.rotate(-90, expand=True)
+                # img = img.rotate(-90, expand=True)
 
-                # Convert to grayscale (equivalent to setting type = 'grayscale' and colorspace = 'gray')
-                img = img.convert("L")  # "L" = 8-bit pixels, black and white
+                img = img.convert("L")
 
-                # Quantize to 256 grayscale colors (Pillow will do this automatically after conversion to 'L')
                 img = img.quantize(colors=256, method=Image.FASTOCTREE)
 
-                # Remove alpha channel by pasting onto white background if it exists
-                if img.mode in ("RGBA", "LA") or (img.mode == "P" and 'transparency' in img.info):
-                    background = Image.new("L", img.size, 255)  # White background in grayscale
-                    img = Image.composite(img.convert("L"), background, img.convert("L"))
+                if img.mode in ("RGBA", "LA") or (img.mode == "P" and
+                                                  'transparency' in img.info):
+                    background = Image.new("L", img.size, 255)
+                    img = Image.composite(img.convert("L"), background,
+                                         img.convert("L"))
 
                 # Save the modified image (overwrites original)
                 img.save(path)"""
@@ -293,31 +310,36 @@ cover_sheet["Rooms"] = cover_sheet["Rooms"].apply(normalize_rooms)
 cover_sheet.insert(
     cover_sheet.columns.get_loc("Assigned Staff or Room"),
     "Assigned Staff",
-    cover_sheet["Assigned Staff or Room"].str.extract(r"([A-Za-z]+, [A-Za-z ]+)")[0]
+    cover_sheet["Assigned Staff or Room"]
+    .str.extract(r"([A-Za-z]+, [A-Za-z ]+)")[0]
 )
 
 # Match supply teachers and real teachers
-assigned_staff = cover_sheet["Assigned Staff or Room"].str.extract(r"([A-Za-z]+, [A-Za-z ]+)")
-supply_staff = cover_sheet["Assigned Staff or Room"].str.extract(r"(Supply \d)")
-cover_sheet["Assigned Staff"] = assigned_staff[0].combine_first(supply_staff[0]).fillna("")
+assigned_staff = (cover_sheet["Assigned Staff or Room"]
+                  .str.extract(r"([A-Za-z]+, [A-Za-z ]+)"))
+supply_staff = (cover_sheet["Assigned Staff or Room"]
+                .str.extract(r"(Supply \d)"))
+cover_sheet["Assigned Staff"] = (assigned_staff[0]
+                                 .combine_first(supply_staff[0]).fillna(""))
 cover_sheet.insert(
     cover_sheet.columns.get_loc("Assigned Staff or Room"),
     "Assigned Room",
     cover_sheet["Rooms"].str.split(">", expand=True)[1]
 )
 
-# Extract Rooms
 assigned_room = cover_sheet["Rooms"].str.split(">", expand=True)
 cover_sheet["Assigned Room"] = assigned_room[1].replace("", pd.NA)
-cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(assigned_room[0])
+cover_sheet["Assigned Room"] = (cover_sheet["Assigned Room"]
+                                .fillna(assigned_room[0]))
 cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].replace("", pd.NA)
-cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(cover_sheet["Assigned Staff or Room"].str.replace(STAFF_PATTERN, "", regex=True))
+cover_sheet["Assigned Room"] = (cover_sheet["Assigned Room"]
+                                .fillna(cover_sheet["Assigned Staff or Room"]
+                                        .str.replace(STAFF_PATTERN, "",
+                                                     regex=True)))
 
-# Separate rows into staff and room based on pattern
 is_staff = cover_sheet["Staff or Room to replace"].str.contains(STAFF_PATTERN)
 is_room = cover_sheet["Staff or Room to replace"].str.match(CLASSROOM_PATTERN)
 
-# Create separate DataFrames
 staff_df = cover_sheet[is_staff].copy()
 staff_df["Replaced Staff"] = staff_df["Staff or Room to replace"]
 staff_df.drop(columns=["Staff or Room to replace"], inplace=True)
@@ -335,7 +357,8 @@ merged_df = pd.merge(
 )
 
 for col in ["Assigned Staff", "Assigned Room", "Times"]:
-    merged_df[col] = merged_df[col + "_staff"].combine_first(merged_df[col + "_room"])
+    merged_df[col] = (merged_df[col + "_staff"]
+                      .combine_first(merged_df[col + "_room"]))
     merged_df.drop(columns=[col + "_staff", col + "_room"], inplace=True)
 
 merged_df = merged_df[[
@@ -345,8 +368,6 @@ merged_df = merged_df[[
 
 merged_df.drop_duplicates(inplace=True)
 
-# Simplified DataFrame start
-
 simplified_sheet = merged_df
 simplified_sheet = simplified_sheet.fillna("")
 
@@ -355,7 +376,8 @@ simplified_sheet.insert(
     "Day",
     simplified_sheet["Period"].str.split(":", expand=True)[0]
 )
-simplified_sheet["Period"] = simplified_sheet["Period"].str.split(":", expand=True)[1]
+simplified_sheet["Period"] = (simplified_sheet["Period"]
+                              .str.split(":", expand=True)[1])
 simplified_sheet['Time'] = simplified_sheet.apply(get_time, axis=1)
 simplified_sheet['Period'] = simplified_sheet.apply(label_period, axis=1)
 simplified_sheet["SortKey"] = simplified_sheet["Activity"].apply(extract_year)
@@ -370,19 +392,22 @@ if simplified_sheet['Times'].dropna().eq("").all():
         index=False,
         escape=False,
         classes="cover-table",
-        columns=["Period", "Activity", "Replaced Staff", "Replaced Room", "Assigned Staff", "Assigned Room"]
+        columns=["Period", "Activity", "Replaced Staff", "Replaced Room",
+                 "Assigned Staff", "Assigned Room"]
     )
 else:
     html_table = simplified_sheet.to_html(
         index=False,
         escape=False,
         classes="cover-table",
-        columns=["Period", "Activity", "Replaced Staff", "Replaced Room", "Assigned Staff", "Assigned Room", "Times"]
+        columns=["Period", "Activity", "Replaced Staff", "Replaced Room",
+                 "Assigned Staff", "Assigned Room", "Times"]
     )
 
 html_table = html_table.replace(
     "<thead>",
-    header(f"Cover and Room Change Summary<br>{formatted_date}", 7 if "Times" in simplified_sheet.columns else 6)
+    header(f"Cover and Room Change Summary<br>{formatted_date}", 7
+           if "Times" in simplified_sheet.columns else 6)
 )
 
 html_output = get_template().replace("{table}", html_table)
@@ -397,10 +422,14 @@ else:
     webbrowser.open(cover_output_path)
 
 supply_rooms = room_or_supply(
-    simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Supply \d+", na=False)].rename(columns={"Replaced Staff": "Teacher to Cover", "Assigned Room": "Room"}, inplace=False),
+    (simplified_sheet[simplified_sheet["Assigned Staff"].str.match(
+        r"Supply \d+", na=False)]
+        .rename(columns={"Replaced Staff": "Teacher to Cover",
+                         "Assigned Room": "Room"}, inplace=False)),
     supply=True
 ) + room_or_supply(
-    simplified_sheet[simplified_sheet["Replaced Room"].str.match(CLASSROOM_PATTERN, na=False)],
+    simplified_sheet[(simplified_sheet["Replaced Room"]
+                     .str.match(CLASSROOM_PATTERN, na=False))],
     supply=False
 )
 
@@ -412,4 +441,7 @@ supply_output_path = save_output(output_html, "supply_sheet.html")
 
 webbrowser.open(supply_output_path)
 
-os.rename(data_file_path, str(data_file_path).replace("Notice Board Summary", f"Notice Board Summary_{date_text}")) if "test_data" not in str(data_file_path) else ""
+(os.rename(data_file_path, str(data_file_path)
+           .replace("Notice Board Summary",
+                    f"Notice Board Summary_{date_text}"))
+ if "test_data" not in str(data_file_path) else "")

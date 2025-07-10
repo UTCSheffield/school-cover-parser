@@ -259,14 +259,13 @@ def room_or_supply(data: pd.DataFrame, supply=False):
 
 
 def get_time(row):
-    return periods.get(row['Period'])['time']
+    return PERIODS.get(row['Period'])['time']
 
 
 def label_period(row):
-    return periods[row['Period']]['label']# if 'label' in periods[row['Period']] else row['Period']
+    return PERIODS[row['Period']]['label']
 
 
-# Extract year group for proper sorting (from Activity, assumed to be class names like '10A')
 def extract_year(group):
     match = re.match(r"(\d+)", group)
     return int(match.group(1)) if match else 0
@@ -282,7 +281,7 @@ def normalize_rooms(val):
 
     first = parts[0]  # CL4>LB14
     # Extract all target rooms from remaps
-    targets = [re.search(classroom_pattern, p) for p in parts[1:]]
+    targets = [re.search(CLASSROOM_PATTERN, p) for p in parts[1:]]
     targets = [m.group(1) for m in targets if m]
     return f"{first}, {', '.join(targets)}" if targets else first
 # FUNCTIONS END
@@ -312,11 +311,11 @@ assigned_room = cover_sheet["Rooms"].str.split(">", expand=True)
 cover_sheet["Assigned Room"] = assigned_room[1].replace("", pd.NA)
 cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(assigned_room[0])
 cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].replace("", pd.NA)
-cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(cover_sheet["Assigned Staff or Room"].str.replace(staff_pattern, "", regex=True))
+cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(cover_sheet["Assigned Staff or Room"].str.replace(STAFF_PATTERN, "", regex=True))
 
 # Separate rows into staff and room based on pattern
-is_staff = cover_sheet["Staff or Room to replace"].str.contains(staff_pattern)
-is_room = cover_sheet["Staff or Room to replace"].str.match(classroom_pattern)
+is_staff = cover_sheet["Staff or Room to replace"].str.contains(STAFF_PATTERN)
+is_room = cover_sheet["Staff or Room to replace"].str.match(CLASSROOM_PATTERN)
 
 # Create separate DataFrames
 staff_df = cover_sheet[is_staff].copy()
@@ -389,7 +388,7 @@ html_table = html_table.replace(
 html_output = get_template().replace("{table}", html_table)
 cover_output_path = save_output(html_output, "cover_sheet.html")
 
-if do_email:
+if DO_EMAIL:
     email(
         subject=f"Cover & Room Change Summary - {formatted_date}",
         body=html_output,
@@ -401,7 +400,7 @@ supply_rooms = room_or_supply(
     simplified_sheet[simplified_sheet["Assigned Staff"].str.match(r"Supply \d+", na=False)].rename(columns={"Replaced Staff": "Teacher to Cover", "Assigned Room": "Room"}, inplace=False),
     supply=True
 ) + room_or_supply(
-    simplified_sheet[simplified_sheet["Replaced Room"].str.match(classroom_pattern, na=False)],
+    simplified_sheet[simplified_sheet["Replaced Room"].str.match(CLASSROOM_PATTERN, na=False)],
     supply=False
 )
 

@@ -15,7 +15,6 @@
         table.cover-table {
             width: 100%;
             border-collapse: collapse;
-            break-after: page;
         }
         table.cover-table:last-of-type {
             break-after: avoid;
@@ -34,11 +33,31 @@
         table.supply-table td:empty {
             background-color: rgb(199, 199, 199);
         }
-        table.room-table {
-            font-size: 125%;
-        }
         table.room-table td:empty {
             background-color: rgb(199, 199, 199);
+        }
+        table.room-table {
+            font-size: 125%;
+            break-after: page;
+        }
+        .supply-info {
+            text-align: center;
+            break-after: page;
+            max-width: 1000px;
+            margin: auto;
+        }
+        .supply-info h2,
+        .supply-info h4,
+        .supply-info p {
+            margin-top: 5px;
+            margin-bottom: 5px;
+        }
+        .supply-info .bulleted-list {
+            text-align: left;
+            display: inline-block;
+            margin: 0 auto;
+            padding-left: 20px;
+            text-align: left;
         }
     </style>
 </head>

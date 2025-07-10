@@ -130,16 +130,16 @@ def email(subject, body, to=""):
     message.Display()
 
 
-def get_template():
-    '''Returns the HTML template'''
+def get_template(supply_info=False):
     template_path = Path.joinpath(Path.cwd(), TEMPLATES_FOLDER,
-                                  "table_template.html")
+                                  "table_template.html"
+                                  if not supply_info else
+                                  "supply_info.html")
     with open(template_path, "r", encoding="utf-8") as template:
         return template.read()
 
 
 def save_output(content, filename):
-    '''Function to save output to a file'''
     output_path = Path.joinpath(Path.cwd(), OUTPUTS_FOLDER, filename)
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(content)
@@ -148,7 +148,7 @@ def save_output(content, filename):
 
 def get_dept(activity):
     dept_match = re.search(r"\/([A-Za-z]+)\d", activity)
-    if match:
+    if dept_match:
         dept_code = dept_match.group(1)
         dept = SUBJECT_DICT.get(dept_code,
                                 """<strong>
@@ -166,8 +166,16 @@ def get_staff_initials(name):
         last_initial = last_name[0].upper()
         last_second_initial = last_name[1].upper()
         initials = f"{first_initial}{last_initial}{last_second_initial}"
-        return f"{name} ({initials})"
+        return f"{initials}"
     return name
+
+
+def get_dept_initials(row):
+    dept = get_dept(row["Activity"])
+    if dept:
+        initials = get_staff_initials(row["Teacher to Cover"])
+        return f"{dept} - {initials}"
+    return ""
 
 
 def room_or_supply(data: pd.DataFrame, supply=False):
@@ -179,12 +187,11 @@ def room_or_supply(data: pd.DataFrame, supply=False):
                     if supply is True else
                     data[data["Replaced Room"] == unique].copy())
 
-        # Get periods that are already assigned for this supply
         assigned_periods = set(filtered["Period"])
 
-        # Fill in missing periods
-        missing = [(p for p in PERIODS.values()
-                    if p['label'] not in assigned_periods)]
+        missing = [
+            p for p in PERIODS.values()
+            if p['label'] not in assigned_periods]
 
         for p in missing:
             time = p["time"]
@@ -196,7 +203,7 @@ def room_or_supply(data: pd.DataFrame, supply=False):
                     "Period": label,
                     "Activity": "",
                     "Teacher to Cover": "",
-                    "Room": "",
+                    "Classroom": "",
                     "Time": time
                 }]) if supply else pd.DataFrame([{
                     "Day": "",
@@ -216,20 +223,17 @@ def room_or_supply(data: pd.DataFrame, supply=False):
 
         filtered.insert(
             filtered.columns.get_loc("Teacher to Cover"),
-            "Department",
-            filtered["Activity"].apply(get_dept)
+            "Department - Initials",
+            filtered.apply(get_dept_initials, axis=1)
         ) if supply else ""
-
-        filtered["Teacher to Cover"] = filtered["Teacher to Cover"].apply(
-            get_staff_initials) if supply else ""
 
         table_html = filtered.to_html(
             index=False,
             escape=False,
-            classes=[("cover-table", "supply-table"
-                      if supply else "room-table")],
+            classes=["cover-table", "supply-table"
+                     if supply else "room-table"],
             columns=(["Period", "Activity", "Teacher to Cover",
-                      "Department", "Room", "Time"]
+                      "Department - Initials", "Classroom", "Time"]
                      if supply else ["Period", "Activity", "Assigned Room"]),
         ).replace(
             "<thead>",
@@ -240,6 +244,7 @@ def room_or_supply(data: pd.DataFrame, supply=False):
         )
 
         tables.append(table_html)
+        tables.append(get_template(supply_info=True)) if supply else ""
 
         """if not supply:
             with sync_playwright() as p:
@@ -425,7 +430,7 @@ supply_rooms = room_or_supply(
     (simplified_sheet[simplified_sheet["Assigned Staff"].str.match(
         r"Supply \d+", na=False)]
         .rename(columns={"Replaced Staff": "Teacher to Cover",
-                         "Assigned Room": "Room"}, inplace=False)),
+                         "Assigned Room": "Classroom"}, inplace=False)),
     supply=True
 ) + room_or_supply(
     simplified_sheet[(simplified_sheet["Replaced Room"]

@@ -39,7 +39,14 @@
         }
         table.room-table {
             font-size: 125%;
-            break-after: page;
+        }
+        .blank-page {
+            height: 100vh;
+            page-break-before: always;
+            visibility: hidden;
+        }
+        .blank-page:last-of-type {
+            page-break-before: avoid;
         }
         .supply-info {
             text-align: center;
@@ -69,7 +76,6 @@
             height: auto;
             z-index: 1000;
         }
-
         div.maps img {
             width: 37%;
             padding: 0px;

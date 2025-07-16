@@ -6,6 +6,7 @@ from pathlib import Path
 import webbrowser
 import re
 from datetime import datetime
+import getpass
 from bs4 import BeautifulSoup
 import pandas as pd
 from win32com import client
@@ -13,8 +14,11 @@ from win32com import client
 # from PIL import Image
 
 # PARAMETERS
-DO_EMAIL = False
+DO_EMAIL = True
 # PARAMETERS END
+
+if getpass.getuser() in ["Archie", "archie", "22hursta"]:
+    DO_EMAIL = False
 
 # CONSTANTS
 DATA_FILENAME = "Notice Board Summary.html"
@@ -178,6 +182,12 @@ def get_dept_initials(row):
     return ""
 
 
+def short_activity(activity):
+    if "CON" in activity:
+        return "CONS"
+    return activity
+
+
 def room_or_supply(data: pd.DataFrame, supply=False):
     uniques = sorted(data["Assigned Staff"].unique()) if supply else sorted(
         data["Replaced Room"].unique())
@@ -227,6 +237,8 @@ def room_or_supply(data: pd.DataFrame, supply=False):
             filtered.apply(get_dept_initials, axis=1)
         ) if supply else ""
 
+        filtered["Activity"] = filtered["Activity"].apply(short_activity)
+
         table_html = filtered.to_html(
             index=False,
             escape=False,
@@ -244,7 +256,9 @@ def room_or_supply(data: pd.DataFrame, supply=False):
         )
 
         tables.append(table_html)
-        tables.append(get_template(supply_info=True)) if supply else ""
+        tables.append(get_template(supply_info=True)
+                      .replace("{supply}", unique)) if supply else ""
+        tables.append("<div class='blank-page'></div>") if not supply else ""
 
         """if not supply:
             with sync_playwright() as p:

@@ -64,8 +64,8 @@
     <rect
        x="937.92438"
        y="691.43909"
-       width="155.57381"
-       height="43.535053"
+       width="163.05157"
+       height="88.577056"
        id="rect7-12-0" />
     <rect
        x="937.92438"
@@ -82,8 +82,8 @@
     <rect
        x="937.92438"
        y="691.43909"
-       width="155.57381"
-       height="43.535053"
+       width="139.08499"
+       height="117.35856"
        id="rect7-1-2" />
     <clipPath
        clipPathUnits="userSpaceOnUse"
@@ -415,7 +415,7 @@
      inkscape:window-x="-8"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer13" />
+     inkscape:current-layer="g1" />
   <g
      inkscape:groupmode="layer"
      inkscape:label="Image"
@@ -603,102 +603,105 @@
     <text
        xml:space="preserve"
        id="text6"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-12);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-12);display:inline;fill:#000000"
        transform="translate(-678.74808,150.98549)"
        clip-path="url(#clipPath31)"><tspan
-         x="993.15186"
-         y="714.85907"
+         x="983.70605"
+         y="723.86661"
          id="tspan6">CL1</tspan></text>
     <text
        xml:space="preserve"
        id="text6-1"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-12-3);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-12-3);display:inline;fill:#000000"
        transform="translate(-477.69682,40.54058)"
        clip-path="url(#clipPath30)"><tspan
-         x="993.15186"
-         y="714.85907"
+         x="983.70605"
+         y="723.86661"
          id="tspan7">LB2</tspan></text>
     <text
        xml:space="preserve"
        id="text6-8"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-12-1);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-12-1);display:inline;fill:#000000"
        transform="translate(-481.7896,218.78797)"
        clip-path="url(#clipPath29)"><tspan
-         x="993.15186"
-         y="714.85907"
+         x="983.70605"
+         y="723.86661"
          id="tspan8">LB1</tspan></text>
     <text
        xml:space="preserve"
        id="text6-38"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-12-0);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-12-0);display:inline;fill:#000000"
        transform="translate(322.09912,54.817777)"
        clip-path="url(#clipPath28)"><tspan
-         x="959.40918"
-         y="714.85907"
+         x="938.41699"
+         y="723.86661"
          id="tspan9">Maker Lab</tspan></text>
     <text
        xml:space="preserve"
        id="text6-9"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-12-00);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-12-00);display:inline;fill:#000000"
        transform="translate(294.81641,224.37872)"
        clip-path="url(#clipPath27)"><tspan
-         x="993.15186"
-         y="714.85907"
+         x="983.70605"
+         y="723.86661"
          id="tspan10">CL4</tspan></text>
     <text
        xml:space="preserve"
        id="text6-6"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-5);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-5);display:inline;fill:#000000"
        transform="translate(-394.53007,-443.48263)"
        clip-path="url(#clipPath26)"><tspan
-         x="993.15186"
-         y="714.85907"
+         x="983.70605"
+         y="723.86661"
          id="tspan11">CL2</tspan></text>
     <text
        xml:space="preserve"
        id="text6-3"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-0);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-0);display:inline;fill:#000000"
        transform="translate(-138.79206,-443.48263)"
        clip-path="url(#clipPath25)"><tspan
-         x="989.54004"
-         y="714.85907"
+         x="978.70508"
+         y="723.86661"
          id="tspan12">SOC</tspan></text>
     <text
        xml:space="preserve"
        id="text6-2"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-9);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-9);display:inline;fill:#000000"
        transform="translate(102.34078,-443.48263)"
        clip-path="url(#clipPath24)"><tspan
-         x="993.15186"
-         y="714.85907"
+         x="983.70605"
+         y="723.86661"
          id="tspan13">CL3</tspan></text>
     <text
        xml:space="preserve"
        id="text6-4"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-1);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-1);display:inline;fill:#000000"
        transform="translate(340.09912,-443.48263)"
        clip-path="url(#clipPath23)"><tspan
-         x="993.15186"
-         y="714.85907"
+         x="983.70605"
+         y="723.86661"
          id="tspan14">LB3</tspan></text>
     <text
        xml:space="preserve"
        id="text6-4-6"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-1-9);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-1-9);display:inline;fill:#000000"
        transform="translate(338.85502,-277.17157)"
        clip-path="url(#clipPath22)"><tspan
-         x="993.15186"
-         y="714.85907"
+         x="983.70605"
+         y="723.86661"
          id="tspan15">LB4</tspan></text>
     <text
        xml:space="preserve"
        id="text6-4-3"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:26px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-1-2);display:inline;fill:#000000"
-       transform="translate(-818.14498,-281.17157)"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:36px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-1-2);shape-padding:9.61848;display:inline;fill:#000000"
+       transform="translate(-818.14498,-322.27216)"
        clip-path="url(#clipPath21)"><tspan
-         x="955.38184"
-         y="714.85907"
-         id="tspan16">Staff Room</tspan></text>
+         x="971.46777"
+         y="733.48575"
+         id="tspan16">Staff </tspan><tspan
+         x="959.47266"
+         y="778.48575"
+         id="tspan17">Room</tspan></text>
   </g>
   <g
      inkscape:groupmode="layer"
@@ -711,15 +714,15 @@
     <text
        xml:space="preserve"
        id="text6-4-9"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:40px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-1-3);display:inline;fill:#000000"
+       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:48px;font-family:Arial;-inkscape-font-specification:'Arial, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;text-align:center;letter-spacing:-2px;white-space:pre;shape-inside:url(#rect7-1-3);display:inline;fill:#000000"
        transform="translate(-805.8669,-606.33811)"
        clip-path="url(#clipPath17-0)"
        x="0"
        y="0"><tspan
          x="937.92383"
-         y="727.46963"
-         id="tspan18"><tspan
+         y="734.67567"
+         id="tspan19"><tspan
            style="text-align:justify"
-           id="tspan17">Floor 1</tspan></tspan></text>
+           id="tspan18">Floor 1</tspan></tspan></text>
   </g>
 </svg>

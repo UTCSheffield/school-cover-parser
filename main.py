@@ -34,6 +34,7 @@ PERIODS = {
     "3": {"time": "11:15-12:10", "label": "3"},
     "4a": {"time": "12:10-12:40", "label": "4a"},
     "4": {"time": "12:40-13:10", "label": "4b"},
+    "4b": {"time": "12:40-13:10", "label": "4b"},
     "4c": {"time": "13:10-13:40", "label": "4c"},
     "5": {"time": "13:40-14:35", "label": "5"},
     "6": {"time": "14:35-15:30", "label": "6"},
@@ -340,13 +341,14 @@ supply_staff = (cover_sheet["Assigned Staff or Room"]
                 .str.extract(r"(Supply \d)"))
 cover_sheet["Assigned Staff"] = (assigned_staff[0]
                                  .combine_first(supply_staff[0]).fillna(""))
+
 cover_sheet.insert(
     cover_sheet.columns.get_loc("Assigned Staff or Room"),
     "Assigned Room",
-    cover_sheet["Rooms"].str.split(">", expand=True)[1]
+    (cover_sheet["Rooms"]+">").str.split(">", expand=True)[1]
 )
 
-assigned_room = cover_sheet["Rooms"].str.split(">", expand=True)
+assigned_room = (cover_sheet["Rooms"]+">").str.split(">", expand=True)
 cover_sheet["Assigned Room"] = assigned_room[1].replace("", pd.NA)
 cover_sheet["Assigned Room"] = (cover_sheet["Assigned Room"]
                                 .fillna(assigned_room[0]))

@@ -28,15 +28,15 @@ PERIODS = {
     "MM": {"time": "08:30-08:45", "label": "MM"},
     "1": {"time": "08:45-09:40", "label": "1"},
     "2": {"time": "09:40-10:30", "label": "2"},
-    "Tut": {"time": "10:30-10:45", "label": "Tutor A"},
-    "Tut [1]": {"time": "10:45-11:00", "label": "Tutor B"},
-    "Tut [1] [2]": {"time": "11:00-11:15", "label": "Tutor C"},
+    #"Tut": {"time": "10:30-10:45", "label": "Tutor A"},
+    #"Tut [1]": {"time": "10:45-11:00", "label": "Tutor B"},
+    #"Tut [1] [2]": {"time": "11:00-11:15", "label": "Tutor C"},
     "Tta": {"time": "10:30-10:45", "label": "Tutor A"},
     "Ttb": {"time": "10:45-11:00", "label": "Tutor B"},
     "Ttc": {"time": "11:00-11:15", "label": "Tutor C"},
     "3": {"time": "11:15-12:10", "label": "3"},
     "4a": {"time": "12:10-12:40", "label": "4a"},
-    "4": {"time": "12:40-13:10", "label": "4b"},
+    #"4": {"time": "12:40-13:10", "label": "4b"},
     "4b": {"time": "12:40-13:10", "label": "4b"},
     "4c": {"time": "13:10-13:40", "label": "4c"},
     "5": {"time": "13:40-14:35", "label": "5"},
@@ -302,7 +302,6 @@ def get_time(row):
     if row['Period'] in PERIODS:
         return PERIODS.get(row['Period'])['time']
     return "??"
-
 
 
 def label_period(row):

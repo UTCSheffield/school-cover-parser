@@ -31,6 +31,9 @@ PERIODS = {
     "Tut": {"time": "10:30-10:45", "label": "Tutor A"},
     "Tut [1]": {"time": "10:45-11:00", "label": "Tutor B"},
     "Tut [1] [2]": {"time": "11:00-11:15", "label": "Tutor C"},
+    "Tta": {"time": "10:30-10:45", "label": "Tutor A"},
+    "Ttb": {"time": "10:45-11:00", "label": "Tutor B"},
+    "Ttc": {"time": "11:00-11:15", "label": "Tutor C"},
     "3": {"time": "11:15-12:10", "label": "3"},
     "4a": {"time": "12:10-12:40", "label": "4a"},
     "4": {"time": "12:40-13:10", "label": "4b"},
@@ -296,11 +299,16 @@ def room_or_supply(data: pd.DataFrame, supply=False):
 
 
 def get_time(row):
-    return PERIODS.get(row['Period'])['time']
+    if row['Period'] in PERIODS:
+        return PERIODS.get(row['Period'])['time']
+    return "??"
+
 
 
 def label_period(row):
-    return PERIODS[row['Period']]['label']
+    if row['Period'] in PERIODS:
+        return PERIODS[row['Period']]['label']
+    return "??"
 
 
 def extract_year(group):

@@ -28,15 +28,11 @@ PERIODS = {
     "MM": {"time": "08:30-08:45", "label": "MM"},
     "1": {"time": "08:45-09:40", "label": "1"},
     "2": {"time": "09:40-10:30", "label": "2"},
-    "Tut": {"time": "10:30-10:45", "label": "Tutor A"},
-    "Tut [1]": {"time": "10:45-11:00", "label": "Tutor B"},
-    "Tut [1] [2]": {"time": "11:00-11:15", "label": "Tutor C"},
     "Tta": {"time": "10:30-10:45", "label": "Tutor A"},
     "Ttb": {"time": "10:45-11:00", "label": "Tutor B"},
     "Ttc": {"time": "11:00-11:15", "label": "Tutor C"},
     "3": {"time": "11:15-12:10", "label": "3"},
     "4a": {"time": "12:10-12:40", "label": "4a"},
-    "4": {"time": "12:40-13:10", "label": "4b"},
     "4b": {"time": "12:40-13:10", "label": "4b"},
     "4c": {"time": "13:10-13:40", "label": "4c"},
     "5": {"time": "13:40-14:35", "label": "5"},
@@ -158,10 +154,7 @@ def get_dept(activity):
     dept_match = re.search(r"\/([A-Za-z]+)\d", activity)
     if dept_match:
         dept_code = dept_match.group(1)
-        dept = SUBJECT_DICT.get(dept_code,
-                                """<strong>
-                                <p color='red'>Unknown Department
-                                </p></strong>""")
+        dept = SUBJECT_DICT.get(dept_code, "Unknown")
         return dept
     return ""
 
@@ -443,9 +436,10 @@ html_output = get_template().replace("{table}", html_table)
 cover_output_path = save_output(html_output, "cover_sheet.html")
 
 if DO_EMAIL:
+    email_body = html_output.replace("<body>", "<body><p>Please find todays cover details below:</p>")
     email(
         subject=f"Cover & Room Change Summary - {formatted_date}",
-        body=html_output,
+        body=email_body,
         to="allutcolpstaff@utcsheffield.org.uk")
 else:
     webbrowser.open(cover_output_path)

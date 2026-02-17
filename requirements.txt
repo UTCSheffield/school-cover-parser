@@ -1,5 +1,8 @@
+# Add Typer for CLI
+typer[all]
 pandas
 bs4
 pywin32
 playwright
 pillow
+arrow

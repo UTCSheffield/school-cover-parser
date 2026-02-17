@@ -1,0 +1,665 @@
+"""CLI entry point for the school_cover_parser package.
+
+This module exposes the Typer app used to process SIMS Notice Board
+Summary HTML files.
+"""
+from pathlib import Path
+import os
+import webbrowser
+import re
+import getpass
+
+import arrow
+import typer
+from bs4 import BeautifulSoup
+import pandas as pd
+from win32com import client
+
+# PARAMETERS
+DO_EMAIL = True
+# PARAMETERS END
+
+if getpass.getuser() in ["Archie", "archie", "22hursta"]:
+    DO_EMAIL = False
+
+# CONSTANTS
+PACKAGE_ROOT = Path(__file__).resolve().parent  # school_cover_parser/
+PROJECT_ROOT = PACKAGE_ROOT.parent              # repo root when editable
+
+DATA_FILENAME = "Notice Board Summary.html"
+OUTPUTS_FOLDER = "outputs"
+TEMPLATES_FOLDER = "templates"
+PERIODS = {
+    "MM": {"time": "08:30-08:45", "label": "MM"},
+    "1": {"time": "08:45-09:40", "label": "1"},
+    "2": {"time": "09:40-10:30", "label": "2"},
+    "Tta": {"time": "10:30-10:45", "label": "Tutor A"},
+    "Ttb": {"time": "10:45-11:00", "label": "Tutor B"},
+    "Ttc": {"time": "11:00-11:15", "label": "Tutor C"},
+    "3": {"time": "11:15-12:10", "label": "3"},
+    "4a": {"time": "12:10-12:40", "label": "4a"},
+    "4b": {"time": "12:40-13:10", "label": "4b"},
+    "4c": {"time": "13:10-13:40", "label": "4c"},
+    "5": {"time": "13:40-14:35", "label": "5"},
+    "6": {"time": "14:35-15:30", "label": "6"},
+}
+
+# Load subject/department mapping relative to the project root so the
+# package works regardless of the current working directory.
+SUBJECT_CSV = PROJECT_ROOT / "class_codes_departments.csv"
+SUBJECT_DF = pd.read_csv(SUBJECT_CSV)
+SUBJECT_DICT = dict(zip(SUBJECT_DF["Code"], SUBJECT_DF["Department"]))
+CLASSROOM_PATTERN = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
+STAFF_PATTERN = r"[A-Za-z]+, [A-Za-z ]+"
+COLUMNS = [
+    "Period",
+    "Staff or Room to replace",
+    "Reason",
+    "Activity",
+    "Rooms",
+    "Staff",
+    "Assigned Staff or Room",
+    "Times",
+]
+# CONSTANTS END
+
+app = typer.Typer(help="Convert SIMS Notice Board Summary to nicer outputs.")
+
+
+def resolve_default_data_file() -> Path:
+    """Resolve the default Notice Board Summary file.
+
+    Looks in Downloads first, then in the project's test_data directory.
+    """
+
+    data_file_path = Path.joinpath(Path.home(), "Downloads", DATA_FILENAME)
+
+    if not Path(data_file_path).is_file():
+        data_file_path = PROJECT_ROOT / "test_data" / DATA_FILENAME
+        if not Path(data_file_path).is_file():
+            raise ValueError("Data file not found in Downloads or test_data.")
+
+    return data_file_path
+
+
+def header(text, colspan):
+    return f"""
+    <thead>
+        <tr>
+            <th colspan=\"{colspan}\" style=\"font-size: 24px; padding: 10px;\">
+                {text}
+            </th>
+        </tr>
+    """
+
+
+def email(subject, body, to=""):
+    outlook = client.Dispatch("Outlook.Application")
+    message = outlook.CreateItem(0)
+    message.Subject = subject
+    message.To = to
+    message.HTMLBody = body
+    message.Display()
+
+
+def get_template(supply_info: bool = False) -> str:
+    template_path = PROJECT_ROOT / TEMPLATES_FOLDER / (
+        "table_template.html" if not supply_info else "supply_info.html"
+    )
+    with open(template_path, "r", encoding="utf-8") as template:
+        return template.read()
+
+
+def save_output(content: str, filename: str) -> Path:
+    file_path = Path(filename)
+
+    # If an absolute path is provided, respect it; otherwise write
+    # into an `outputs` folder under the current working directory.
+    if file_path.is_absolute():
+        output_path = file_path
+    else:
+        output_path = Path.cwd() / OUTPUTS_FOLDER / filename
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return output_path
+
+
+def get_dept(activity: str) -> str:
+    dept_match = re.search(r"/([A-Za-z]+)\d", activity)
+    if dept_match:
+        dept_code = dept_match.group(1)
+        return SUBJECT_DICT.get(dept_code, "Unknown")
+    return ""
+
+
+def get_staff_initials(name: str) -> str:
+    initial_match = re.match(r"([A-Za-z]+),\s+[A-Za-z]+\s+([A-Za-z])", name)
+    if initial_match:
+        last_name = initial_match.group(1)
+        first_initial = initial_match.group(2).upper()
+        last_initial = last_name[0].upper()
+        last_second_initial = last_name[1].upper()
+        initials = f"{first_initial}{last_initial}{last_second_initial}"
+        return initials
+    return name
+
+
+def get_dept_initials(row) -> str:
+    dept = get_dept(row["Activity"])
+    if dept:
+        initials = get_staff_initials(row["Teacher to Cover"])
+        return f"{dept} - {initials}"
+    return ""
+
+
+def short_activity(activity: str) -> str:
+    if "CON" in activity:
+        return "CONS"
+    return activity
+
+
+def get_time(row) -> str:
+    if row["Period"] in PERIODS:
+        return PERIODS[row["Period"]]["time"]
+    return "??"
+
+
+def label_period(row) -> str:
+    if row["Period"] in PERIODS:
+        return PERIODS[row["Period"]]["label"]
+    return "??"
+
+
+def extract_year(group: str) -> int:
+    match = re.match(r"(\d+)", group)
+    return int(match.group(1)) if match else 0
+
+
+def normalize_rooms(val: str) -> str:
+    if not isinstance(val, str) or val.strip() == "":
+        return ""
+
+    parts = val.split(";")
+    if len(parts) == 1:
+        return parts[0]
+
+    first = parts[0]
+    targets = [re.search(CLASSROOM_PATTERN, p) for p in parts[1:]]
+    targets = [m.group(1) for m in targets if m]
+    return f"{first}, {', '.join(targets)}" if targets else first
+
+
+def room_or_supply(data: pd.DataFrame, formatted_date: str, supply: bool = False):
+    uniques = (
+        sorted(data["Assigned Staff"].unique())
+        if supply
+        else sorted(data["Replaced Room"].unique())
+    )
+    tables: list[str] = []
+    for unique in uniques:
+        filtered = (
+            data[data["Assigned Staff"] == unique].copy()
+            if supply
+            else data[data["Replaced Room"] == unique].copy()
+        )
+
+        assigned_periods = set(filtered["Period"])
+
+        missing = [p for p in PERIODS.values() if p["label"] not in assigned_periods]
+
+        for p in missing:
+            time = p["time"]
+            label = p["label"]
+            filtered = pd.concat(
+                [
+                    filtered,
+                    (
+                        pd.DataFrame(
+                            [
+                                {
+                                    "Day": "",
+                                    "Period": label,
+                                    "Activity": "",
+                                    "Teacher to Cover": "",
+                                    "Classroom": "",
+                                    "Time": time,
+                                }
+                            ]
+                        )
+                        if supply
+                        else pd.DataFrame(
+                            [
+                                {
+                                    "Day": "",
+                                    "Period": label,
+                                    "Activity": "",
+                                    "Assigned Room": "",
+                                    "Time": time,
+                                }
+                            ]
+                        )
+                    ),
+                ],
+                ignore_index=True,
+            )
+
+        filtered["SortKey"] = filtered["Time"]
+        filtered.sort_values(by="SortKey", inplace=True)
+        filtered.drop(columns=["SortKey"], inplace=True)
+
+        if filtered.empty:
+            continue
+
+        if supply:
+            filtered.insert(
+                filtered.columns.get_loc("Teacher to Cover"),
+                "Department - Initials",
+                filtered.apply(get_dept_initials, axis=1),
+            )
+
+        filtered["Activity"] = filtered["Activity"].apply(short_activity)
+
+        table_html = (
+            filtered.to_html(
+                index=False,
+                escape=False,
+                classes=["cover-table", "supply-table" if supply else "room-table"],
+                columns=(
+                    [
+                        "Period",
+                        "Activity",
+                        "Teacher to Cover",
+                        "Department - Initials",
+                        "Classroom",
+                        "Time",
+                    ]
+                    if supply
+                    else ["Period", "Activity", "Assigned Room"]
+                ),
+            ).replace(
+                "<thead>",
+                header(
+                    f"{unique} Cover Assignments - {formatted_date}"
+                    if supply
+                    else f"Room Changes for {unique} - {formatted_date}",
+                    6 if supply else 3,
+                ),
+            )
+        )
+
+        tables.append(table_html)
+        if supply:
+            tables.append(get_template(supply_info=True).replace("{supply}", unique))
+        else:
+            tables.append("<div class='blank-page'></div>")
+
+    return tables
+
+
+def process_notice_file(
+    data_file_path: Path,
+    do_email: bool = True,
+    rename_source: bool = True,
+    open_browser: bool = True,
+    output_suffix: str | None = None,
+) -> None:
+    """Process a single SIMS Notice Board Summary HTML file."""
+
+    if not data_file_path.is_file():
+        raise ValueError(f"Data file not found: {data_file_path}")
+
+    # LOAD DATA
+    with open(data_file_path, "r", encoding="utf-8") as file:
+        soup = BeautifulSoup(file, "html.parser")
+
+    rows = soup.find_all("tr")
+    data: list[list[str]] = []
+    for row in rows:
+        cols = row.find_all("td")
+        if not cols:
+            continue
+        values = [col.get_text(strip=True) for col in cols]
+        if all(val == "" for val in values):
+            continue
+        data.append(values)
+    # LOAD DATA END
+
+    # DATE EXTRACTION
+    date_text = ""
+    for string in soup.stripped_strings:
+        if "Full List of Staff and Room Details:" in string:
+            match = re.search(
+                r"Full List of Staff and Room Details:" +
+                r"\s*(\d{1,2}-[A-Za-z]{3}-\d{4})",
+                string,
+            )
+            if match:
+                date_text = match.group(1)
+                break
+
+    # Default to today's date; override if we can parse a value
+    formatted_date = arrow.now().format("dddd DD MMMM YYYY")
+
+    if date_text:
+        try:
+            # Use Arrow for parsing and pretty formatting
+            date_obj = arrow.get(date_text, "D-MMM-YYYY")
+            formatted_date = date_obj.format("dddd DD MMMM YYYY")
+        except Exception:
+            # If parsing fails, keep the "now"-based formatted_date
+            pass
+    # DATE EXTRACTION END
+
+    # DATAFRAME + CLEANUP
+    expected_cols = len(COLUMNS)
+    row_lengths = {len(row) for row in data}
+    if row_lengths != {expected_cols}:
+        data = [row for row in data if len(row) == expected_cols]
+
+    if not data:
+        raise ValueError(
+            f"No rows with expected column count {expected_cols} found; "
+            f"saw row lengths: {sorted(row_lengths)}",
+        )
+
+    cover_sheet = pd.DataFrame(data, columns=COLUMNS)
+
+    cover_sheet = cover_sheet.dropna(
+        subset=["Staff or Room to replace", "Assigned Staff or Room"],
+    )
+    cover_sheet.drop(columns=["Reason"], inplace=True)
+    cover_sheet = cover_sheet[
+        ~cover_sheet["Assigned Staff or Room"].str.contains(
+            "No Cover Required", na=False,
+        )
+    ]
+    cover_sheet = cover_sheet[
+        ~cover_sheet["Period"].str.contains(":Enr|Mon:6|Fri:6")
+    ]
+    cover_sheet = cover_sheet[
+        ~cover_sheet["Activity"].str.contains("-")
+    ]
+
+    cover_sheet["Rooms"] = cover_sheet["Rooms"].str.replace(
+        r"[()]", "", regex=True,
+    )
+    cover_sheet["Staff or Room to replace"] = cover_sheet[
+        "Staff or Room to replace"
+    ].str.replace(r"[()]", "", regex=True)
+    # DATAFRAME + CLEANUP END
+
+    cover_sheet["Rooms"] = cover_sheet["Rooms"].apply(normalize_rooms)
+
+    cover_sheet.insert(
+        cover_sheet.columns.get_loc("Assigned Staff or Room"),
+        "Assigned Staff",
+        cover_sheet["Assigned Staff or Room"].str.extract(
+            r"([A-Za-z]+, [A-Za-z ]+)",
+        )[0],
+    )
+
+    assigned_staff = cover_sheet["Assigned Staff or Room"].str.extract(
+        r"([A-Za-z]+, [A-Za-z ]+)",
+    )
+    supply_staff = cover_sheet["Assigned Staff or Room"].str.extract(
+        r"(Supply \d)",
+    )
+    cover_sheet["Assigned Staff"] = assigned_staff[0].combine_first(
+        supply_staff[0],
+    ).fillna("")
+
+    cover_sheet.insert(
+        cover_sheet.columns.get_loc("Assigned Staff or Room"),
+        "Assigned Room",
+        (cover_sheet["Rooms"]+">").str.split(">", expand=True)[1],
+    )
+
+    assigned_room = (cover_sheet["Rooms"]+">").str.split(">", expand=True)
+    cover_sheet["Assigned Room"] = assigned_room[1].replace("", pd.NA)
+    cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(
+        assigned_room[0],
+    )
+    cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].replace(
+        "", pd.NA,
+    )
+    cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(
+        cover_sheet["Assigned Staff or Room"].str.replace(
+            STAFF_PATTERN, "", regex=True,
+        ),
+    )
+
+    is_staff = cover_sheet["Staff or Room to replace"].str.contains(
+        STAFF_PATTERN,
+    )
+    is_room = cover_sheet["Staff or Room to replace"].str.match(
+        CLASSROOM_PATTERN,
+    )
+
+    staff_df = cover_sheet[is_staff].copy()
+    staff_df["Replaced Staff"] = staff_df["Staff or Room to replace"]
+    staff_df.drop(columns=["Staff or Room to replace"], inplace=True)
+
+    room_df = cover_sheet[is_room].copy()
+    room_df["Replaced Room"] = room_df["Staff or Room to replace"]
+    room_df.drop(columns=["Staff or Room to replace"], inplace=True)
+
+    merged_df = pd.merge(
+        staff_df,
+        room_df,
+        on=["Activity", "Period"],
+        how="outer",
+        suffixes=("_staff", "_room"),
+    )
+
+    for col in ["Assigned Staff", "Assigned Room", "Times"]:
+        merged_df[col] = merged_df[f"{col}_staff"].combine_first(
+            merged_df[f"{col}_room"],
+        )
+        merged_df.drop(columns=[f"{col}_staff", f"{col}_room"], inplace=True)
+
+    merged_df = merged_df[[
+        "Period",
+        "Activity",
+        "Replaced Staff",
+        "Replaced Room",
+        "Assigned Staff",
+        "Assigned Room",
+        "Times",
+    ]]
+
+    merged_df.drop_duplicates(inplace=True)
+
+    simplified_sheet = merged_df.fillna("")
+
+    simplified_sheet.insert(
+        0,
+        "Day",
+        simplified_sheet["Period"].str.split(":", expand=True)[0],
+    )
+    simplified_sheet["Period"] = simplified_sheet["Period"].str.split(
+        ":", expand=True,
+    )[1]
+    simplified_sheet["Time"] = simplified_sheet.apply(get_time, axis=1)
+    simplified_sheet["Period"] = simplified_sheet.apply(
+        label_period, axis=1,
+    )
+    simplified_sheet["SortKey"] = simplified_sheet["Activity"].apply(
+        extract_year,
+    )
+    simplified_sheet.sort_values(
+        by=["Time", "SortKey", "Activity"], inplace=True,
+    )
+    simplified_sheet.drop(columns=["SortKey"], inplace=True)
+
+    if simplified_sheet["Times"].dropna().eq("").all():
+        html_table = simplified_sheet.to_html(
+            index=False,
+            escape=False,
+            classes="cover-table",
+            columns=[
+                "Period",
+                "Activity",
+                "Replaced Staff",
+                "Replaced Room",
+                "Assigned Staff",
+                "Assigned Room",
+            ],
+        )
+    else:
+        html_table = simplified_sheet.to_html(
+            index=False,
+            escape=False,
+            classes="cover-table",
+            columns=[
+                "Period",
+                "Activity",
+                "Replaced Staff",
+                "Replaced Room",
+                "Assigned Staff",
+                "Assigned Room",
+                "Times",
+            ],
+        )
+
+    html_table = html_table.replace(
+        "<thead>",
+        header(
+            f"Cover and Room Change Summary<br>{formatted_date}",
+            7 if "Times" in simplified_sheet.columns else 6,
+        ),
+    )
+
+    suffix = output_suffix or ""
+
+    html_output = get_template().replace("{table}", html_table)
+    cover_output_path = save_output(html_output, f"cover_sheet{suffix}.html")
+
+    if do_email:
+        email_body = html_output.replace(
+            "<body>",
+            "<body><p>Please find todays cover details below:</p>",
+        )
+        email(
+            subject=f"Cover & Room Change Summary - {formatted_date}",
+            body=email_body,
+            to="allutcolpstaff@utcsheffield.org.uk",
+        )
+    elif open_browser:
+        webbrowser.open(cover_output_path)
+
+    supply_rooms = room_or_supply(
+        simplified_sheet[
+            simplified_sheet["Assigned Staff"].str.match(
+                r"Supply \d+", na=False,
+            )
+        ].rename(
+            columns={
+                "Replaced Staff": "Teacher to Cover",
+                "Assigned Room": "Classroom",
+            },
+            inplace=False,
+        ),
+        formatted_date,
+        supply=True,
+    ) + room_or_supply(
+        simplified_sheet[
+            simplified_sheet["Replaced Room"].str.match(
+                CLASSROOM_PATTERN, na=False,
+            )
+        ],
+        formatted_date,
+        supply=False,
+    )
+
+    supply_room_html = "<br><br>".join(supply_rooms)
+
+    output_html = get_template().replace("{table}", supply_room_html)
+
+    supply_output_path = save_output(
+        output_html,
+        f"supply_sheet{suffix}.html",
+    )
+
+    if open_browser:
+        webbrowser.open(supply_output_path)
+
+    if rename_source and "test_data" not in str(data_file_path):
+        try:
+            os.rename(
+                data_file_path,
+                str(data_file_path).replace(
+                    "Notice Board Summary",
+                    f"Notice Board Summary_{date_text}",
+                ),
+            )
+        except OSError:
+            pass
+
+
+@app.command()
+def run(
+    file: Path = typer.Option(
+        None,
+        "--file",
+        "-f",
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="Path to 'Notice Board Summary' HTML file.",
+    ),
+    email: bool = typer.Option(
+        True,
+        "--email/--no-email",
+        help="Send email via Outlook with the summary.",
+    ),
+    test: bool = typer.Option(
+        False,
+        "--test",
+        help="Run against all .html files in the test_data folder.",
+    ),
+) -> None:
+    """Run the cover sheet processing once or in test mode."""
+
+    effective_do_email = DO_EMAIL and email
+
+    if test:
+        test_dir = PROJECT_ROOT / "test_data"
+        html_files = sorted(test_dir.glob("*.html"))
+        if not html_files:
+            typer.echo(f"No .html files found in {test_dir}")
+            raise typer.Exit(code=1)
+
+        for path in html_files:
+            typer.echo(f"Processing test file: {path.name}")
+            process_notice_file(
+                path,
+                do_email=False,
+                rename_source=False,
+                open_browser=False,
+                output_suffix=f"_{path.stem}",
+            )
+
+        typer.echo("Test mode complete.")
+        return
+
+    if file is None:
+        try:
+            file = resolve_default_data_file()
+        except ValueError as exc:
+            typer.echo(str(exc))
+            raise typer.Exit(code=1)
+
+    process_notice_file(
+        file,
+        do_email=effective_do_email,
+        rename_source=("test_data" not in str(file)),
+        open_browser=True,
+        output_suffix=None,
+    )
+
+
+if __name__ == "__main__":
+    app()

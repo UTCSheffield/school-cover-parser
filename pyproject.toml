@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "school-cover-parser"
+version = "0.1.0"
+description = "Convert SIMS Notice Board Summary to nicer outputs"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [
+  { name = "UTC Sheffield" }
+]
+
+# Keep this in sync with requirements.txt
+dependencies = [
+  "typer[all]",
+  "pandas",
+  "bs4",
+  "pywin32",
+  "playwright",
+  "pillow",
+  "arrow",
+]
+
+[project.scripts]
+# Allows running as the `school-cover-parser` command after install
+school-cover-parser = "school_cover_parser.cli:app"
+
+[project.urls]
+Homepage = "https://www.galacticstudios.org/kindle-weather-display/"
+
+[tool.setuptools]
+# Explicitly declare which packages to include so editable installs work
+packages = ["school_cover_parser"]

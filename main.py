@@ -297,7 +297,6 @@ def get_time(row):
     return "??"
 
 
-
 def label_period(row):
     if row['Period'] in PERIODS:
         return PERIODS[row['Period']]['label']

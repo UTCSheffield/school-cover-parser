@@ -8,6 +8,7 @@ import os
 import webbrowser
 import re
 import getpass
+import shutil
 
 import arrow
 import typer
@@ -44,9 +45,9 @@ PERIODS = {
     "6": {"time": "14:35-15:30", "label": "6"},
 }
 
-# Load subject/department mapping relative to the project root so the
-# package works regardless of the current working directory.
-SUBJECT_CSV = PROJECT_ROOT / "class_codes_departments.csv"
+# Load subject/department mapping relative to the installed package so the
+# package works both in editable mode and when installed from PyPI.
+SUBJECT_CSV = PACKAGE_ROOT / "class_codes_departments.csv"
 SUBJECT_DF = pd.read_csv(SUBJECT_CSV)
 SUBJECT_DICT = dict(zip(SUBJECT_DF["Code"], SUBJECT_DF["Department"]))
 CLASSROOM_PATTERN = r"([A-Za-z]{2}[1-9]{1,2})|SOC|CQ|HS[LD]B|TLV"
@@ -69,13 +70,14 @@ app = typer.Typer(help="Convert SIMS Notice Board Summary to nicer outputs.")
 def resolve_default_data_file() -> Path:
     """Resolve the default Notice Board Summary file.
 
-    Looks in Downloads first, then in the project's test_data directory.
+    Looks in Downloads first, then in the package's test_data directory so it
+    works both from source and when installed.
     """
 
     data_file_path = Path.joinpath(Path.home(), "Downloads", DATA_FILENAME)
 
     if not Path(data_file_path).is_file():
-        data_file_path = PROJECT_ROOT / "test_data" / DATA_FILENAME
+        data_file_path = PACKAGE_ROOT / "test_data" / DATA_FILENAME
         if not Path(data_file_path).is_file():
             raise ValueError("Data file not found in Downloads or test_data.")
 
@@ -103,7 +105,7 @@ def email(subject, body, to=""):
 
 
 def get_template(supply_info: bool = False) -> str:
-    template_path = PROJECT_ROOT / TEMPLATES_FOLDER / (
+    template_path = PACKAGE_ROOT / TEMPLATES_FOLDER / (
         "table_template.html" if not supply_info else "supply_info.html"
     )
     with open(template_path, "r", encoding="utf-8") as template:
@@ -124,6 +126,38 @@ def save_output(content: str, filename: str) -> Path:
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(content)
     return output_path
+
+
+def copy_static_assets(base_dir: Path) -> None:
+    """Copy static assets next to the generated HTML.
+
+    HTML produced by this tool references a sibling ``static`` directory
+    (e.g. ``../static/Floor-0.png`` from the outputs folder). To make
+    those links work regardless of where the command is run from, we
+    copy the package's static assets into ``base_dir / 'static'``.
+    """
+
+    # Prefer the repo-level static directory when running from source;
+    # fall back to the packaged static directory when installed.
+    candidates = [PROJECT_ROOT / "static", PACKAGE_ROOT / "static"]
+    src = next((c for c in candidates if c.is_dir()), None)
+    if src is None:
+        return
+
+    dest = base_dir / "static"
+
+    try:
+        if dest.exists() and dest.resolve() == src.resolve():
+            # Avoid copying a directory onto itself when running from the
+            # project root where ``static`` already exists in place.
+            return
+    except FileNotFoundError:
+        # ``dest.resolve()`` can raise if intermediate components are
+        # missing; in that case we definitely still want to copy.
+        pass
+
+    # Copy the tree, allowing updates if the destination already exists.
+    shutil.copytree(src, dest, dirs_exist_ok=True)
 
 
 def get_dept(activity: str) -> str:
@@ -410,16 +444,29 @@ def process_notice_file(
         supply_staff[0],
     ).fillna("")
 
+    # Derive the assigned room from the "Rooms" column.
+    # Values can be either "FROM>TO" or a single room; handle both safely.
+    split_rooms = (
+        cover_sheet["Rooms"]
+        .fillna("")
+        .astype(str)
+        .str.split(">", n=1, expand=True)
+    )
+
+    # Ensure we always have two columns (0 and 1) even if no
+    # ">" is present anywhere in the data.
+    if split_rooms.shape[1] < 2:
+        split_rooms = split_rooms.reindex(columns=range(2), fill_value=pd.NA)
+
     cover_sheet.insert(
         cover_sheet.columns.get_loc("Assigned Staff or Room"),
         "Assigned Room",
-        (cover_sheet["Rooms"]+">").str.split(">", expand=True)[1],
+        split_rooms[1],
     )
 
-    assigned_room = (cover_sheet["Rooms"]+">").str.split(">", expand=True)
-    cover_sheet["Assigned Room"] = assigned_room[1].replace("", pd.NA)
+    cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].replace("", pd.NA)
     cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].fillna(
-        assigned_room[0],
+        split_rooms[0],
     )
     cover_sheet["Assigned Room"] = cover_sheet["Assigned Room"].replace(
         "", pd.NA,
@@ -472,6 +519,11 @@ def process_notice_file(
     merged_df.drop_duplicates(inplace=True)
 
     simplified_sheet = merged_df.fillna("")
+
+    # If there are no rows left after merging and cleaning, there is no
+    # meaningful cover/room change data to output for this file.
+    if simplified_sheet.empty:
+        return None
 
     simplified_sheet.insert(
         0,
@@ -585,6 +637,12 @@ def process_notice_file(
     if open_browser:
         webbrowser.open(supply_output_path)
 
+    # Ensure a 'static' directory exists alongside the HTML outputs so
+    # that image links in the templates resolve correctly. The HTML
+    # files live in the outputs folder, so copy static into that
+    # folder and reference paths like "static/Floor-0.png".
+    copy_static_assets(supply_output_path.parent)
+
     if rename_source and "test_data" not in str(data_file_path):
         try:
             os.rename(
@@ -596,6 +654,10 @@ def process_notice_file(
             )
         except OSError:
             pass
+    
+    # Return the generated output paths so callers (e.g. test mode) can
+    # report whether generation actually produced files.
+    return {"cover": cover_output_path, "supply": supply_output_path}
 
 
 @app.command()
@@ -626,7 +688,19 @@ def run(
     effective_do_email = DO_EMAIL and email
 
     if test:
-        test_dir = PROJECT_ROOT / "test_data"
+        # In test mode, start from a clean outputs directory so it's
+        # easy to see exactly which files this run produced.
+        outputs_dir = Path.cwd() / OUTPUTS_FOLDER
+        if outputs_dir.is_dir():
+            for child in outputs_dir.iterdir():
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+
+        # Always use the in-package test_data directory so test mode works
+        # both from source and when the package is installed.
+        test_dir = PACKAGE_ROOT / "test_data"
         html_files = sorted(test_dir.glob("*.html"))
         if not html_files:
             typer.echo(f"No .html files found in {test_dir}")
@@ -634,13 +708,25 @@ def run(
 
         for path in html_files:
             typer.echo(f"Processing test file: {path.name}")
-            process_notice_file(
-                path,
-                do_email=False,
-                rename_source=False,
-                open_browser=False,
-                output_suffix=f"_{path.stem}",
-            )
+            try:
+                result = process_notice_file(
+                    path,
+                    do_email=False,
+                    rename_source=False,
+                    open_browser=False,
+                    output_suffix=f"_{path.stem}",
+                )
+            except Exception as exc:
+                typer.echo(f"  Error: {exc}")
+                continue
+
+            if result:
+                cover_name = Path(result.get("cover")).name if result.get("cover") else ""
+                supply_name = Path(result.get("supply")).name if result.get("supply") else ""
+                names = ", ".join(n for n in (cover_name, supply_name) if n)
+                typer.echo(f"  Success: generated {names}")
+            else:
+                typer.echo("  Skipped: no cover or supply data found")
 
         typer.echo("Test mode complete.")
         return

@@ -34,3 +34,12 @@ Homepage = "https://www.galacticstudios.org/kindle-weather-display/"
 [tool.setuptools]
 # Explicitly declare which packages to include so editable installs work
 packages = ["school_cover_parser"]
+
+[tool.setuptools.package-data]
+"school_cover_parser" = [
+  "class_codes_departments.csv",
+  "templates/*.html",
+  "test_data/*.html",
+  "static/*",
+  "static/svg/*",
+]
